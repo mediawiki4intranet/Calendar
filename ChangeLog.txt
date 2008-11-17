@@ -1,0 +1,62 @@
+2008-06-24 - slg
+   - fixed the typo of $title instead of $title->getText()
+
+2007-11-10 - slg
+   - changed $calendarString to $ret to improve readability.
+   - fixed getDaysInMonth() so that it takes a year and the month
+   - getArticleSummaryLink($article), which returned a summary for a given article,
+     removed.
+   - getSummariesForArticle() created, which returns an array of
+     summaries, allowing multiple articles to be stored on a single
+     date.  
+   - Now allows multiple entries per event. 
+   - [arseSectionHeading() & parseSectionText() removed
+   
+2007-10-28 - slg
+   - Now handles redirects (up to 10) for MediaWiki 1.11 (getText() no longer follows redirects)
+   - If entry begins with a '==', it gets the section as head text.
+
+2007-10-15 - slg
+   - Fixed for MediaWiki 1.11
+
+2007-10-02 - slg
+  Cleaned up code and made to work under MediaWiki 1.11. 
+
+2006-11-12
+  Setup an alternative method for determining the root location of the web
+  server.  The PHP server variable DOCUMENT_ROOT is not available on all
+  servers so it had to be determine through other means.
+  
+  Changed the way the article content is retrieved so it doesn't alter the
+  title of the page the calendar is on, occurs in some versions of
+  MediaWiki.
+  
+  Used an alternative method of retieving the title of the current article
+  as the methods have varied between versions of MediaWiki.  Hopefully this
+  method works for most of the current versions.
+  
+  Now the extension supports being installed into other locations, rather
+  then just the extensions folder.
+
+  Support for both URL formats should be OK now.  The extension will still
+  write URLs in the long format, but there should be no problem with this.
+
+2006-11-08 - 
+  The extension now passes the script path variable defined by MediaWiki to
+  the calendarAdjust.php page so it can determine how to include the
+  necessary files and call the index.php page.
+
+  The calendarAdjust.php file now uses the passed path to include the
+  wiki files and call the index.php page, so it shouldn't be dependent on
+  install location.
+
+  calendarAdjust.php file now includes a minimal amount of files for looking
+  up articles, and will not show an error message for the profiler needed by
+  the Setup.php file in later versions of MediaWiki.  This should make it
+  more compatible with older versions of MediaWiki.
+
+  The CSS file is not longer being linked to in the template file, as it was
+  dependent on the install location of the calendar.  The style is not added
+  in a <style> tag instead.  You can of course do as you wish in your own
+  template designs :) 
+  
