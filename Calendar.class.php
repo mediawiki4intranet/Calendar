@@ -15,6 +15,7 @@ class CalendarArticle
     var $body = ""; // everything except line 1 in the event page
     var $html = ""; // html link displayed in calendar
     var $isImage = false;
+    var $anchor = "";
 
     function CalendarArticle($month, $day, $year){
         $this->month = $month;
@@ -41,7 +42,6 @@ class CalendarArticles
     public function addArticle($month, $day, $year, $page){
         $lines = array();
         $temp = "";
-        $head = array();
 
         $article = new Article(Title::newFromText($page));
         if(!$article->exists()) return "";
@@ -50,52 +50,58 @@ class CalendarArticles
 
         if( $article->isRedirect() && $this->setting('disableredirects') ) return '';
 
-         while($article->isRedirect() && $redirectCount < 10){
-             $redirectedArticleTitle = Title::newFromRedirect($article->getContent());
-             $article = new Article($redirectedArticleTitle);
-             $redirectCount += 1;
-         }
+        while($article->isRedirect() && $redirectCount < 10){
+            $redirectedArticleTitle = Title::newFromRedirect($article->getContent());
+            $article = new Article($redirectedArticleTitle);
+            $redirectCount += 1;
+        }
 
         $body = $article->fetchContent(0,false,false);
 
         if(strlen(trim($body)) == 0) return "";
 
-        $lines = split("\n",$body);
-        $cntLines = count($lines);
+        $lines = split("\n",trim($body));
 
         // dont use section events... only line 1 of the page
-        if($this->setting('disablesectionevents')){
-            $key = $lines[0]; //initalize the key
-            $head[$key] = "";
-            $cntLines = 0;
+        $head = array();
+        if ($this->setting('disablesectionevents'))
+        {
+            $key = array_shift($lines);
+            $head[] = array('name' => $key, 'body' => implode("\n", $lines));
         }
-
-        for($i=0; $i<$cntLines; $i++){
-            $line = $lines[$i];
-            if(substr($line,0,2) == '=='){
-                $arr = split("==",$line);
-                $key = $arr[1];
-                $head[$key] = ""; $temp = "";
-            }
-            else{
-                if($i == 0){ // $i=0  means this is a one event page no (==event==) data
-                    $key = $line; //initalize the key
-                    $head[$key] = "";
+        else
+        {
+            $last = array();
+            foreach ($lines as $i => $line)
+            {
+                $line = trim($line);
+                if (preg_match('/^(=+)(.*)\1/s', $line, $m))
+                {
+                    if ($last)
+                        $head[] = $last;
+                    $last['anchor'] = $last['name'] = trim($m[2]);
+                    $last['body'] = '';
                 }
-                else{
-                    $temp .= "$line\n";
-                    $head[$key] = CalendarCommon::cleanWiki($temp);
+                elseif (!$last)
+                {
+                    if ($last)
+                        $head[] = $last;
+                    $last['name'] = $line;
+                    $last['body'] = '';
                 }
+                else
+                    $last['body'] .= "$line\n";
             }
         }
+        if ($last)
+            $head[] = $last;
 
-        while (list($event,$body) = each($head)){
-            $this->buildEvent($month, $day, $year, trim($event), $page, $body);
-        }
+        foreach ($head as $ev)
+            $this->buildEvent($month, $day, $year, trim($ev['name']), $page, $ev['body'], 'addevent', false, $ev['anchor']);
     }
 
     // this is the main logic/format handler; the '$event' is checked for triggers here...
-    public function buildEvent($month, $day, $year, $event, $page, $body, $eventType='addevent', $bRepeats=false){
+    public function buildEvent($month, $day, $year, $event, $page, $body, $eventType='addevent', $bRepeats=false, $anchor=''){
 
         // user triggered yearly repeat event...
         if(substr($event,0,2) == '##'){
@@ -114,7 +120,7 @@ class CalendarArticles
             }
         }
         else
-            $this->add($month, $day, $year, $event, $page, $body, $eventType, $bRepeats);
+            $this->add($month, $day, $year, $event, $page, $body, $eventType, $bRepeats, $anchor);
     }
 
     static function eventname_sort($a, $b)
@@ -166,17 +172,18 @@ class CalendarArticles
                 if ($cArticle->month == $month && $cArticle->day == $day && $cArticle->year == $year)
                 {
                     $n = $cArticle->eventname;
+                    $link = $cArticle->page . ($cArticle->anchor ? '#' . $cArticle->anchor : '');
                     if (($p = strpos($n, '[[')) === false)
                     {
                         // add a wiki-link
-                        $n = '[[' . $cArticle->page . '|' . $n . ']]';
+                        $n = '[[' . $link . '|' . $n . ']]';
                     }
                     elseif (($p1 = strpos($n, ':', $p)) !== false &&
                         $wgLang->getNsIndex(substr($n, $p+2, $p1-$p-2)) == NS_IMAGE &&
                         ($p1 = strpos($n, ']]', $p)) !== false)
                     {
                         // add link= to image
-                        $n = substr($n, 0, $p1) . '|link=' . $cArticle->page . substr($n, $p1);
+                        $n = substr($n, 0, $p1) . '|link=' . $link . substr($n, $p1);
                     }
                     $n .= "<br />";
                     $list .= CalendarCommon::parse($n);
@@ -257,7 +264,7 @@ class CalendarArticles
 
     // this is the FINAL stop; the events are stored here then pulled out
     // and displayed later via "getArticleLinks()"...
-    private function add($month, $day, $year, $eventname, $page, $body, $eventType='addevent', $bRepeats=false){
+    private function add($month, $day, $year, $eventname, $page, $body, $eventType='addevent', $bRepeats=false, $anchor=''){
         // $eventType='default' -- addevent
         // $eventType='recurrence'
         // $eventType='template'
@@ -284,6 +291,7 @@ class CalendarArticles
         $cArticle->page = $page;
         $cArticle->eventname = $temp;
         $cArticle->body = $body;
+        $cArticle->anchor = $anchor;
 
         $cArticle->isImage = $eventType;
 
