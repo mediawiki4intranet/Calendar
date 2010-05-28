@@ -1169,9 +1169,9 @@ class WikiCalendar extends CalendarArticles
             $this->calendarMode = "eventlist";
             $daysOut = ($setting <= 120 ? $setting : 120);
 
-            $month = $this->month;
-            $day = $this->day;
-            $year = $this->year;
+            $month = date('m');
+            $day = date('d');
+            $year = date('Y');
 
             $this->updateSetting('charlimit',100);
 
