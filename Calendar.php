@@ -280,7 +280,9 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     if(isset($params['date'])) $userMode = 'day';
     if(isset($params['simplemonth'])) $userMode = 'simplemonth';
 
-    if(isset($_COOKIE['calendar_ical']))
+    // FIXME
+    // THIS IS A BIG SECURITY HOLE. DISABLED UNTIL REFACTORING.
+    if(false && isset($_COOKIE['calendar_ical']))
     {
         wfDebug('Calendar: ICAL cookie loaded');
 
