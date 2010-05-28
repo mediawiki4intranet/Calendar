@@ -157,9 +157,9 @@ class CalendarCommon
 
     // Local parsing and HTML rendering for individual lines of wiki markup
     static $parserOptions;
-    static function parse($parser, $line)
+    static function parse($line, $parser = NULL)
     {
-        global $wgTitle;
+        global $wgTitle, $wgParser;
         /* Если использовать для разбора каких-либо кусков текста глобальный парсер,
            нужно передавать $clearState = false! Иначе функция parse дёргает
            Parser::clearState() и все сохранённые подстановки типа
@@ -171,6 +171,8 @@ class CalendarCommon
             self::$parserOptions->setEditSection(false);
             self::$parserOptions->setTidy(false);
         }
+        if (is_null($parser))
+            $parser = $wgParser;
         $parserOutput = $parser->parse(trim($line), $parser->mTitle ? $parser->mTitle : $wgTitle, self::$parserOptions, false, false);
         return str_replace(array("<p>","</p>","\r","\n"), "", $parserOutput->mText);
     }

@@ -18,6 +18,9 @@ if (!defined('MEDIAWIKI')) {
 
 $gCalendarVersion = "v3.8.4 (8/18/2009)";
 
+if (!$wgCalendarDateFormat)
+    $wgCalendarDateFormat = 'D.M.YYYY';
+
 # Credits
 $wgExtensionCredits['parserhook'][] = array(
     'name'        => 'Calendar',
@@ -191,10 +194,10 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
 
     // set defaults that are required later in the code...
     if(!isset($params["timetrackhead"]))     $params["timetrackhead"] = "Event, Value";
-    if(!isset($params["maxdailyevents"]))     $params["maxdailyevents"] = 5;
-    if(!isset($params["yearoffset"]))         $params["yearoffset"] = 2;
+    if(!isset($params["maxdailyevents"]))    $params["maxdailyevents"] = 5;
+    if(!isset($params["yearoffset"]))        $params["yearoffset"] = 2;
     if(!isset($params["charlimit"]))         $params["charlimit"] = 25;
-    if(!isset($params["css"]))                 $params["css"] = "default.css";
+    if(!isset($params["css"]))               $params["css"] = "default.css";
 
     // set secure mode via $wgRestrictCalendarTo global
     // this global is set via LocalSetting.php (ex: $wgRestrictCalendarTo = 'sysop';

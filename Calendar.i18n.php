@@ -179,3 +179,29 @@ $messages['nl'] = array(
 	'dayyearTranslated' => "Dzien roku",
 	'weekyearTranslated' => "Tydzien roku"
 );
+
+// Russian
+$messages['ru'] = array(
+	'default_title' => "Общий",
+	'year' => "год",
+	'month' => "месяц",
+	'week' => "неделя",
+	'ical_inst' => "Выберите ical-файл (vcalendar).",
+	'add_event' => "Добавить",
+	'add_event_tip' => "Добавить новое событие",
+	'styles_btn' => "стили событий",
+	'styles_btn_tip' => "Задать CSS стили на основе ключевых слов",
+	'template_btn' => "события",
+	'template_btn_tip' => "Создать несколько событий разом...",
+	'ical_btn' => "загрузить",
+	'ical_btn_tip' => "Импортировать выделенный файл",
+	'ical_browse_tip' => "выберите ical-файл для загрузки...",
+	'config_btn' => "настройки",
+	'config_btn_tip' => "Вывести сюда настройки календаря",
+	'today' => "сегодня",
+	'invalid_namespace' => "Кривое пространство имён - календарь можно использовать только в следующих пространствах имён: ",
+	'about' => "Нажмите сюда для получения справки и прочей информации",
+	'dayyearTranslated' => "День года",
+	'weekyearTranslated' => "Неделя года"
+);
+

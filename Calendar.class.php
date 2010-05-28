@@ -117,12 +117,15 @@ class CalendarArticles
             $this->add($month, $day, $year, $event, $page, $body, $eventType, $bRepeats);
     }
 
+    static function eventname_sort($a, $b)
+    {
+        return strcmp($a->eventname, $b->eventname);
+    }
+
     // this is the MAIN function that returns the events to the calendar...
     // there shouldn't be ANY formatting or logic done here....
     public function getArticleLinks($month, $day, $year)
     {
-        global $wgParser;
-
         $ret = $list = "";
         $bFound = false;
 
@@ -140,9 +143,27 @@ class CalendarArticles
 
         if(isset($this->arrArticles['events']))
         {
+            // sort them by name
+            usort($this->arrArticles['events'], 'WikiCalendar::eventname_sort');
             foreach($this->arrArticles['events'] as $cArticle)
             {
-                if($cArticle->month == $month && $cArticle->day == $day && $cArticle->year == $year)
+                if (preg_match('/(\d\d:\d\d(:\d\d)?)[^\w:]*(\d\d:\d\d(:\d\d)?)/s', $cArticle->eventname, $m))
+                {
+                    $min = $m[1];
+                    $max = $m[3];
+                    if (!$m[2])
+                        $min .= ':00';
+                    if (!$m[4])
+                        $max .= ':00';
+                    if (strcmp($min, $max) > 0)
+                    {
+                        $t = $min;
+                        $min = $max;
+                        $max = $t;
+                    }
+                    $this->index[sprintf("%04d-%02d-%02d", $cArticle->year, $cArticle->month, $cArticle->day)][] = array($min, $max);
+                }
+                if ($cArticle->month == $month && $cArticle->day == $day && $cArticle->year == $year)
                 {
                     $n = $cArticle->eventname;
                     if (($p = strpos($n, '[[')) === false)
@@ -157,6 +178,7 @@ class CalendarArticles
                         // add link= to image
                         $n = substr($n, 0, $p1) . '|link=' . $cArticle->page . substr($n, $p1);
                     }
+                    $n .= "<br />";
                     $list .= CalendarCommon::parse($n);
                     $bFound = true;
                 }
@@ -180,8 +202,6 @@ class CalendarArticles
 
         // format for different event types
         $class = "baseEvent ";
-        //if($bRepeats) $class .= "repeatEvent ";
-        //if($eventType == "recurrence") $class .= "recurrenceEvent ";
         $class = trim($class);
 
         $cArticle->month = $month;
@@ -331,8 +351,10 @@ class CalendarArticles
         return $html_head . $ret . $html_foot;
     }
 
-    //find the number of current events and "build" the <add event> link
-    public function buildAddEventLink($month, $day, $year, $text="") {
+    // find the number of current events and "build" the <add event> link
+    public function buildAddEventLink($month, $day, $year, $text="")
+    {
+        global $wgOut;
 
         if($day < 1) return "";
         $section_new = '';
@@ -340,69 +362,105 @@ class CalendarArticles
         if($this->setting('disableaddevent') && strlen($text) == 0) return "";
         if($this->setting('disableaddevent') && strlen($text) > 0) return $day;
 
-        $articleName = "";        // the name of the article to check for
-        $articleCount = 1;        // the article count
+        $articleName = ""; // the name of the article to check for
+        $articleCount = 1; // the article count
 
-        if($text == "")
-            $text = CalendarCommon::translate("add_event");
+        $date = sprintf("%04d-%02d-%02d", $year, $month, $day);
 
-        $tip = CalendarCommon::translate('add_event_tip');
-
-        if($this->setting('weekofyear')){
-            $tip .= " (wk:" . $this->getWeekOfTheYear($month,$day,$year,true) . ")";
-        }
-
-        //$date = "$month-$day-$year";
-        $date = $this->userDateFormat($month, $day, $year);
-
-        $articleName = $this->getNextAvailableArticle($this->calendarPageName, $date);
-
+        $argv = array('action' => 'edit');
         // if we're using multi-event mode, then default to section=new
-        if( $this->setting('usesectionevents') )
-            $section_new = "&section=new";
+        if ($this->setting('usesectionevents'))
+        {
+            $sect = true;
+            $argv['section'] = 'new';
+        }
+        $articleName = $this->getNextAvailableArticle($this->calendarPageName, $date);
+        $title = Title::newFromText($articleName);
 
-        $newURL = "<a title='$tip' href='" . $this->wikiRoot . wfUrlencode($articleName) . "&action=edit$section_new'>$text</a>";
-        return $newURL;
+        $html = '';
+        // addeventsbyhour = 8..21 by default
+        if ($range = $this->setting('addeventsbyhour'))
+        {
+            list($min, $max) = split('..', $range);
+            if (!$max || $min < 0 || $max > 23)
+                list($min, $max) = array(8, 21);
+            $min = intval($min);
+            $max = intval($max);
+            $mid = intval(($min+$max) / 2);
+            // display separate links for adding event to each hour
+            foreach (range($min, $max) as $h)
+            {
+                if (!$sect)
+                {
+                    $articleName = $this->getNextAvailableArticle($this->calendarPageName, $date.sprintf(" %02d", $h));
+                    $title = Title::newFromText($articleName);
+                }
+                // JS and form POST is needed here because MW does not fill edit fields from GET requests
+                $onclick = sprintf("wikiaddevent('%s',".($sect ? "'wpSummary'" : "'wpTextbox1'").",'%02d:00-%02d:00')", $title->getFullURL($argv), $h, $h+1);
+                $used = $this->indexHourUsed($date, $h);
+                $html .= '<a href="javascript:void(0)" '.($used ? 'class="calendarUsed" ' : '').'onclick="'.htmlspecialchars($onclick,ENT_QUOTES).'">'.sprintf("%02d",$h).'</a> ';
+                if ($h == $mid)
+                    $html .= '<br />';
+            }
+            // Add JS source if it is not present already
+            if (strpos($wgOut->mScripts, 'Calendar.addevent.js') === false)
+            {
+                global $wgScriptPath;
+                $wgOut->addScriptFile($wgScriptPath.'/extensions/Calendar/Calendar.addevent.js');
+            }
+        }
+        else
+        {
+            // Display only one link: "Add event"
+            if ($text == "")
+                $text = CalendarCommon::translate("add_event");
+            $tip = CalendarCommon::translate('add_event_tip');
+            if ($this->setting('weekofyear'))
+                $tip .= " (wk:" . $this->getWeekOfTheYear($month,$day,$year,true) . ")";
+            $html = '<a title="'.$tip.'" href="' . $title->getFullURL($argv).'">'.$text.'</a>';
+        }
+        return $html;
     }
 
-    public function getNextAvailableArticle($page, $date, $event_zero=false){
-        $stop = false;
-        $page = "$page/$date -Event ";
-        $articleCount = 1;
+    public function indexHourUsed($date, $h)
+    {
+        if (!$this->index[$date])
+            return false;
+        foreach ($this->index[$date] as $i)
+            if (intval(substr($i[0], 0, 2)) <= $h &&
+                intval(substr($i[1], 0, 2)) >= $h && strcmp($i[1], sprintf("%02d:00:00", $h)) > 0)
+                return true;
+        return false;
+    }
+
+    public function getNextAvailableArticle($page, $date, $event_zero = false)
+    {
+        $page = $page.'/'.$date;
 
         // for ical option and setting all icals to Event -0 (== event ==) style
         if($event_zero)
-            return $page . "0";
+            return $page;
 
-        $max_articles = $this->setting('maxdailyevents',false);
+        $max_articles = $this->setting('maxdailyevents', false);
 
         // bump up the max for iCal imports...but not to much in case of a runaway
         // we also want to ignore the inforced 'usesectionevents'..however, the
         // calendar will still only display the 'maxdailyevents' value
-        if($this->setting('ical')){
+        if ($this->setting('ical'))
             $max_articles += 5;
-        }
-        else{
-            if($this->setting('usesectionevents') && !$this->setting('ical'))
-                return $page . $articleCount;
-        }
-
-        $article = new Article(Title::newFromText($page . $articleCount));
+        elseif ($this->setting('usesectionevents'))
+            return $page;
 
         // dont care about the articles here, just need to get next available article
-        while ($article->exists() && !$stop) {
-            $displayText  = $article->fetchContent(0,false,false);
-            if(strlen($displayText) > 0){
-                $articleCount++;
-                $article = new Article(Title::newFromText($page . $articleCount));
+        $page .= "_N";
+        $next_article = 1;
+        while ($next_article < $max_articles && /* limit */
+            ($article = new Article(Title::newFromText($page . sprintf("%02d", $next_article)))) && /* create article */
+            $article->exists() && /* article exists */
+            strlen($article->fetchContent(0, false, false)) > 0) /* article is non-empty */
+            $next_article++;
 
-                if($articleCount == $max_articles)
-                    $stop = true;
-            }
-            else $stop = true;
-        }
-
-        return  $page . $articleCount;
+        return $page . sprintf("%02d", $next_article);
     }
 
     function readStylepage(){
@@ -410,8 +468,8 @@ class CalendarArticles
         $article = new Article(Title::newFromText($articleName));
 
         if ($article->exists()){
-            $displayText  = $article->fetchContent(0,false,false);
-            $this->arrStyle = split(chr(10), $displayText);
+            $displayText = $article->fetchContent(0,false,false);
+            $this->arrStyle = split("\n", $displayText);
         }
     }
 
@@ -446,10 +504,7 @@ class CalendarArticles
 
     // returns the link for an article, along with summary in the title tag, given a name
     private function articleLink($title, $text, $noLink=false){
-        global $wgParser;
-
         if(strlen($text)==0) return "";
-        //$text = $wgParser->recursiveTagParse( $text );
         $arrText = $this->buildTextAndHTMLString($text);
         $style = $arrText[2];
 
@@ -744,9 +799,9 @@ class WikiCalendar extends CalendarArticles
         $this->day = $this->actualDay = $now['mday'];
     }
 
-     // render the calendar
-     function renderCalendar($userMode){
-
+    // render the calendar
+    function renderCalendar($userMode)
+    {
         $ret = "";
         $this->mode = $userMode;
 
@@ -795,11 +850,14 @@ class WikiCalendar extends CalendarArticles
         if($userMode == 'events')
             $ret = $this->renderEventList();
 
-        //tag on extra info at the end of whatever is displayed
+        // tag on extra info at the end of whatever is displayed
         $ret .= $this->buildTrackTimeSummary();
 
+        if ($this->prepend_html)
+            $ret = $this->prepend_html . $ret;
+
         return $ret;
-     }
+    }
 
     // build the months articles into memory
     // $back: days back from ($this->day)
@@ -813,11 +871,7 @@ class WikiCalendar extends CalendarArticles
 
         $cnt = abs($back) + $forward;
 
-        $arr_start = CalendarCommon::datemath($back, $this->month, $this->day, $this->year);
-
-        $month = $arr_start['mon'];
-        $day = $arr_start['mday'];
-        $year = $arr_start['year'];
+        list($month, $day, $year) = CalendarCommon::datemath($back, $this->month, $this->day, $this->year);
 
         for ($i = 1; $i <= $cnt; $i++) {
             $this->buildArticlesForDay($month, $day, $year);
@@ -922,7 +976,7 @@ class WikiCalendar extends CalendarArticles
         $tempString = $this->templateHTML['normal'];
 
         $thedate = getdate(mktime(12, 0, 0, $month, $day, $year));
-        $wday  = $thedate['wday'];
+        $wday = $thedate['wday'];
         $weekday = CalendarCommon::translate($wday+1, 'weekday');
 
         $display_day = $day;
@@ -943,8 +997,6 @@ class WikiCalendar extends CalendarArticles
             $tag_wday = "calendarWeekday";
         }
 
-        $tag_addEvent = $this->buildAddEventLink($month, $day, $year);
-
         $tag_mode = 'monthMode';
         if($mode == 'events'){
             $tag_mode = 'eventsMode';
@@ -958,8 +1010,11 @@ class WikiCalendar extends CalendarArticles
             $tag_dayCustom = "singleDay";
         }
 
-        //build formatted event list
+        // build formatted event list
         $tag_eventList = $this->getArticleLinks($month, $day, $year, true);
+
+        // build Add event bar after building event list
+        $tag_addEvent = $this->buildAddEventLink($month, $day, $year);
 
         // no events, then return nothing!
         if((strlen($tag_eventList) == 0) && ($mode == 'events')) return "";
@@ -1112,7 +1167,7 @@ class WikiCalendar extends CalendarArticles
 
             $this->updateSetting('charlimit',100);
 
-            //build the days out....
+            // build the days out....
             $this->initalizeMonth(0, $daysOut);
 
             for ($i = 0; $i < $daysOut; $i++)
@@ -1123,8 +1178,7 @@ class WikiCalendar extends CalendarArticles
                 list($month, $day, $year) = CalendarCommon::datemath(1, $month, $day, $year);
             }
 
-            $ret = "<i> " . $this->buildConfigLink(true) . "</i>"
-                . $events;
+            $ret = "<i> " . $this->buildConfigLink(true) . "</i>" . $events;
             $ret = "<table width=100%>" . $ret . "</table>";
         }
         wfProfileOut(__METHOD__);
@@ -1554,10 +1608,9 @@ class WikiCalendar extends CalendarArticles
 
     // builds the day events into memory
     // uses prefix seaching (NS:page/name/date)... anything after doesn't matter
-    function buildArticlesForDay($month, $day, $year) {
-
-        //$date = "$month-$day-$year";
-        $date = $this->userDateFormat($month, $day, $year);
+    function buildArticlesForDay($month, $day, $year)
+    {
+        $date = sprintf("%04d-%02d-%02d", $year, $month, $day);
 
         $search = "$this->calendarPageName/$date";
         $pages = PrefixSearch::titleSearch( $search, '100');
@@ -1746,11 +1799,7 @@ class WikiCalendar extends CalendarArticles
 
         if($this->setting('monday'))
             $weekday--;
-        $date = CalendarCommon::datemath(-($weekday), $this->month, $this->day, $this->year);
-
-        $month = $date['mon'];
-        $day = $date['mday'];
-        $year = $date['year'];
+        list($month, $day, $year) = CalendarCommon::datemath(-($weekday), $this->month, $this->day, $this->year);
 
         $title = CalendarCommon::translate($month, 'month') . ", " . $year;
 
