@@ -1274,7 +1274,7 @@ class WikiCalendar extends CalendarArticles
         }
         /* relative dates */
         if ($shift !== false)
-            list($this->month, $this->day, $this->year) = CalendarCommon::datemath($shift, $this->month, $this->day, $this->year);
+            list($this->month, $this->day, $this->year) = CalendarCommon::datemath($shift, date('m'), date('d'), date('Y'));
         wfProfileOut(__METHOD__);
     }
 
