@@ -1117,10 +1117,11 @@ class WikiCalendar extends CalendarArticles
         return $ret;
     }
 
-    function loadiCalLink(){
+    function loadiCalLink()
+    {
+        global $wgContLang;
         $ical_value = CalendarCommon::translate('ical_btn');
         $ical_title = CalendarCommon::translate('ical_btn_tip');
-        $bws_title = CalendarCommon::translate('ical_browse_tip');
 
         $note = "";
         $cookieName = str_replace(' ', '_', ($this->calendarPageName . "_ical_count"));
@@ -1130,9 +1131,9 @@ class WikiCalendar extends CalendarArticles
             setcookie($cookieName, "", time()-3600);
         }
 
-        $ret = CalendarCommon::translate('ical_inst') . "<br>"
-            . "<input name='uploadedfile' type='file' title=\"$bws_title\" size='50'><br>"
-            . "<input name='ical' class='btn' type='submit' title=\"$ical_title\" value=\"$ical_value\">&nbsp;&nbsp;"
+        $ret = CalendarCommon::translate('ical_inst')
+            . "<br /><input type='text' name='ical' value='".$wgContLang->getNsText(NS_FILE).":' />"
+            . "<input class='btn' type='submit' title=\"$ical_title\" value=\"$ical_value\">&nbsp;&nbsp;"
             . $note;
 
         return $ret;

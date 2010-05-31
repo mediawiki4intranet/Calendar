@@ -108,14 +108,6 @@ function wfCalendarRefresh()
         $cookie_value = $month . "`" . $day . "`" . $year . "`" . $title . "`" . $name . "`" . $mode . "`";
         setcookie($cookie_name, $cookie_value);
 
-        if(isset($v["ical"]))
-        {
-            $path = "images/";
-            $path = $path . basename($_FILES['uploadedfile']['name']);
-            move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $path);
-            setcookie('calendar_ical', $path);
-        }
-
         // reload the page..clear any purge commands that may be in it from an ical load...
         $url = str_replace("&action=purge", "", $_SERVER['REQUEST_URI']);
         header("Location: " . $url);
@@ -127,7 +119,7 @@ function wfCalendarRefresh()
 // most $params[] values are passed right into the calendar as is...
 function wfCalendarDisplay($paramstring, $params = array(), $parser)
 {
-    global $wgScript, $wgScriptPath;
+    global $wgScript, $wgScriptPath, $wgRequest;
     global $wgTitle, $wgUser;
     global $wgRestrictCalendarTo, $wgCalendarDisableRedirects;
     global $wgCalendarForceNamespace, $wgCalendarDateFormat;
@@ -280,22 +272,13 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     if(isset($params['date'])) $userMode = 'day';
     if(isset($params['simplemonth'])) $userMode = 'simplemonth';
 
-    // FIXME
-    // THIS IS A BIG SECURITY HOLE. DISABLED UNTIL REFACTORING.
-    if(false && isset($_COOKIE['calendar_ical']))
+    if (($ical = $wgRequest->getText('ical')) &&
+        ($title = Title::newFromText($ical, NS_FILE)) &&
+        ($img = wfLocalFile($title)))
     {
-        wfDebug('Calendar: ICAL cookie loaded');
-
-        $calendar->load_iCal($_COOKIE['calendar_ical']);
-
-        //delete ical file in "mediawiki/images" folder
-        @unlink($_COOKIE['calendar_ical']);
-
-        // delete the ical path cookie
-        setcookie('calendar_ical', "", time() -3600);
-
+        $calendar->load_iCal($img->getFullPath());
         // refresh the calendar's newly added events
-        $calendar->invalidateCache=true;
+        $calendar->invalidateCache = true;
     }
 
     $render = $calendar->renderCalendar($userMode);
