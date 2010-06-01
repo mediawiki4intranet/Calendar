@@ -27,6 +27,9 @@ $messages['en'] = array(
 	'about' => "Click here for help and more information",
 	'dayyearTranslated' => "Day of the year",
 	'weekyearTranslated' => "Week of the year"
+	'calendar-rss-title' => "$1 — new events",
+	'calendar-rss-info' => "New events for $1.",
+	'calendar-rss-link' => "RSS feed",
 );
 
 // French
