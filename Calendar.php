@@ -2,7 +2,7 @@
 
 /* Calendar.php
  * - Vitaliy Filippov < vitalif@mail.ru >
- *   (Refactoring and security fixes)
+ *   (Refactoring, security fixes, RSS)
  *
  * - Original author(s):
  *       Eric Fortin < kenyu73@gmail.com >
@@ -38,11 +38,32 @@ $wgAutoloadClasses['WikiCalendar'] = "$path/Calendar.class.php";
 $wgAutoloadClasses['CalendarCommon'] = "$path/Calendar.common.php";
 $wgAutoloadClasses['CalendarArticle'] = "$path/Calendar.class.php";
 $wgAutoloadClasses['CalendarArticles'] = "$path/Calendar.class.php";
+$wgHooks['UnknownAction'][] = 'wfCalendarUnknownAction';
 
 function wfCalendarExtension()
 {
     global $wgParser;
     $wgParser->setHook('calendar', 'wfCalendarDisplay');
+}
+
+function wfCalendarUnknownAction($action, $article)
+{
+    if ($action == 'rss-calendar')
+    {
+        global $wgScript, $wgRequest;
+        wfLoadExtensionMessages( 'wfCalendarExtension' );
+        CalendarCommon::parse('');
+        $calendar = new WikiCalendar($wgScript . "?title=");
+        $params = $wgRequest->getValues();
+        $t = $article->getTitle();
+        $params['path'] = str_replace("\\", "/", dirname(__FILE__));
+        $params['title'] = Title::newFromText($t->prefix($t->getBaseText()));
+        $params['name'] = $t->getSubpageText();
+        $calendar->config($params);
+        $calendar->renderFeed();
+        return false;
+    }
+    return true;
 }
 
 function wfCalendarRefresh()
@@ -132,38 +153,17 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     $wikiRoot = $wgScript . "?title=";
     $userMode = 'month';
 
-    // grab the page title
-    $title = $wgTitle->getPrefixedText();
-
-    $config_page = " ";
-
-    $calendar = null;
     $calendar = new WikiCalendar($wikiRoot);
-
-    $calendar->namespace = $wgTitle->getNsText();
-
-    if(!isset($params["name"])) $params["name"] = "Public";
-
-    $calendar->paramstring = $paramstring;
 
     // set path
     $params['path'] = str_replace("\\", "/", dirname(__FILE__));
 
-    $name = CalendarCommon::checkForMagicWord($params["name"]);
-
     // normal calendar...
-    $calendar->calendarPageName = "$title/$name";
-    $calendar->configPageName = "$title/$name/config";
-
-    if(isset($params["useconfigpage"])) {
-        $configs = $calendar->getConfig("$title/$name");
-
-        //merge the config page and the calendar tag params; tag params overwrite config file
-        $params = array_merge($configs, $params);
-    }
-
-    // just in case i rename some preferences... we can make them backwards compatible here...
-    legacyAliasChecks($params);
+    $params['title'] = $wgTitle;
+    $calendar->paramstring = $paramstring;
+    $calendar->config($params);
+    $title = $params['title']->getPrefixedText();
+    $name = $params['name'];
 
     // if the calendar isn't in a namespace(s) specificed in $wgCalendarForceNamespace, return a warning
     // this can be a string or an array
@@ -184,69 +184,7 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
         }
     }
 
-    // set defaults that are required later in the code...
-    if(!isset($params["timetrackhead"]))     $params["timetrackhead"] = "Event, Value";
-    if(!isset($params["maxdailyevents"]))    $params["maxdailyevents"] = 5;
-    if(!isset($params["yearoffset"]))        $params["yearoffset"] = 2;
-    if(!isset($params["charlimit"]))         $params["charlimit"] = 25;
-    if(!isset($params["css"]))               $params["css"] = "default.css";
-
-    // set secure mode via $wgRestrictCalendarTo global
-    // this global is set via LocalSetting.php (ex: $wgRestrictCalendarTo = 'sysop';
-    if( isset($wgRestrictCalendarTo) ){
-        $arrGroups = $wgUser->getGroups();
-        if( is_array($wgRestrictCalendarTo) ){
-            if( count(array_intersect($wgRestrictCalendarTo, $arrGroups)) == 0 ){
-                $params["lockdown"] = true;
-            }
-        }
-        else{
-            if( !in_array($wgRestrictCalendarTo, $arrGroups) ){
-                $params["lockdown"] = true;
-            }
-        }
-    }
-
-    if (isset($wgCalendarDisableRedirects))
-        $params['disableredirects'] = true;
-
-    // no need to pass a parameter here... isset check for the params name, thats it
-    if(isset($params["lockdown"])){
-        $params['disableaddevent'] = true;
-        $params['disablelinks'] = true;
-        $params['locktemplates'] = true;
-    }
-
-    if(isset($params["5dayweek"])){
-        $params['monday'] = true;
-    }
-
-    // this needs to be last after all required $params are updated, changed, defaulted or whatever
-    $calendar->arrSettings = $params;
-
-    // joint calendar...pulling data from our calendar and the subscribers...ie: "title/name" format
-    if(isset($params["subscribe"]))
-        if($params["subscribe"] != "subscribe") $calendar->subscribedPages = split(",", $params["subscribe"]);
-
-    // subscriber only calendar...basically, taking the subscribers identity fully...ie: "title/name" format
-    if( isset($params["fullsubscribe"]) ) {
-        if($params["fullsubscribe"] != "fullsubscribe") {
-            $arrString = explode('/', $params["fullsubscribe"]);
-            array_pop($arrString);
-            $string = implode('/', $arrString);
-            $article = new Article(Title::newFromText( $string ));
-
-            // if the fullsubscribe calendar doesn't exisit, return a warning...
-            if(!$article->exists()) return "Invalid 'fullsubscribe' calendar page: <b><i>$string</i></b>";
-
-            $calendar->calendarPageName = htmlspecialchars($params["fullsubscribe"]);
-            $calendar->isFullSubscribe = true;
-        }
-    }
-
-    // finished special conditions; set the $title and $name in the class
-    $calendar->setTitle($title);
-    $calendar->setName($name);
+    // finished special conditions
 
     $cookie_name = preg_replace('/(\.|\s)/',  '_', ($title . " " . $name)); //replace periods and spaces
     if(isset($_COOKIE[$cookie_name])){
@@ -291,11 +229,6 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     }
 
     return $render;
-}
-
-// alias ugly/bad preferences to newer, hopefully better names
-function legacyAliasChecks(&$params) {
-    if( isset($params['usemultievent']) ) $params['usesectionevents'] = 'usesectionevents';
 }
 
 function wfCalendarFunctions_Magic( &$magicWords, $langCode ) {

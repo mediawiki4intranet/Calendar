@@ -195,6 +195,9 @@ $messages['ru'] = array(
 	'invalid_namespace' => "Кривое пространство имён - календарь можно использовать только в следующих пространствах имён: ",
 	'about' => "Нажмите сюда для получения справки и прочей информации",
 	'dayyearTranslated' => "День года",
-	'weekyearTranslated' => "Неделя года"
+	'weekyearTranslated' => "Неделя года",
+	'calendar-rss-title' => "$1 — новые события",
+	'calendar-rss-info' => "Лента новых событий в календаре $1.",
+	'calendar-rss-link' => "RSS-лента",
 );
 
