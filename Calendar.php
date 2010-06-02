@@ -68,7 +68,7 @@ function wfCalendarUnknownAction($action, $article)
 
 function wfCalendarRefresh()
 {
-    global $wgRequest;
+    global $wgRequest, $wgTitle, $wgScriptPath;
     // this is the "refresh" code that allows the calendar to switch time periods
     $v = $wgRequest->getValues();
     if (isset($v["calendar_info"]))
@@ -127,10 +127,10 @@ function wfCalendarRefresh()
 
         $cookie_name = preg_replace('/(\.|\s)/',  '_', ($title . " " . $name)); // replace periods and spaces
         $cookie_value = $month . "`" . $day . "`" . $year . "`" . $title . "`" . $name . "`" . $mode . "`";
-        setcookie($cookie_name, $cookie_value);
+        setcookie($cookie_name, $cookie_value, 0, $wgScriptPath);
 
         // reload the page..clear any purge commands that may be in it from an ical load...
-        $url = str_replace("&action=purge", "", $_SERVER['REQUEST_URI']);
+        $url = $wgTitle->getFullUrl();
         header("Location: " . $url);
         exit;
     }
@@ -188,7 +188,7 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
 
     $cookie_name = preg_replace('/(\.|\s)/',  '_', ($title . " " . $name)); //replace periods and spaces
     if(isset($_COOKIE[$cookie_name])){
-        wfDebug('Calendar: Cookie loaded');
+        wfDebug('Calendar: Cookie loaded: '.$_COOKIE[$cookie_name]."\n");
 
         $arrSession = split("`", $_COOKIE[$cookie_name]);
         $calendar->setMonth($arrSession[0]);

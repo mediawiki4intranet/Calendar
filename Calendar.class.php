@@ -1711,16 +1711,12 @@ class WikiCalendar extends CalendarArticles
         }
     }
 
-    function buildSimpleCalendar($month, $year,$disableNavButtons=false){
+    function buildSimpleCalendar($month, $year, $disableNavButtons=false){
 
         $prev = $next = "";
 
-        $monthname = CalendarCommon::translate($month,'month_short');
-        if ( $this->isFullSubscribe ) {
-            $monthname = "<a title='$this->calendarPageName' href='" . $this->wikiRoot . substr($this->calendarPageName, 0, strrpos($this->calendarPageName, "/")) . "'>" . $monthname . "</a>";
-        }
-
-        $monthyear = "$monthname, $this->year";
+        $monthname = CalendarCommon::translate($month, 'month_short');
+        $monthyear = "<a href='".$this->titleObject->getFullUrl(array('viewSelect' => 'month', 'calendar_info' => $month.'`1`'.$year.'`'.$this->title.'`'.$this->name.'`'))."'>$monthname, $this->year</a>";
 
         if(!$disableNavButtons){
             $prev = "<input class='btn' name='monthBack' type='submit' value='<<'>";
@@ -1767,8 +1763,8 @@ class WikiCalendar extends CalendarArticles
         return "<form name='cal_frm' method='post'>" . $header . "$ret</table>$hidden</form>";
     }
 
-    function renderYear(){
-
+    function renderYear()
+    {
         $tag_mini_cal_year = "";
 
         $tag_previousYearButton = "<input class='btn' name='yearBack' type='submit' value='<<'>";
