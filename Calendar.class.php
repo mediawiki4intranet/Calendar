@@ -1798,7 +1798,6 @@ class WikiCalendar extends CalendarArticles
     function renderWeek($fiveDay = false)
     {
         wfProfileIn(__METHOD__);
-        $this->initalizeMonth(0,8);
 
         // defaults
         $sunday = $saturday  = $ret = $week = "";
