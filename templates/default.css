@@ -95,18 +95,17 @@ ul.bullets {padding-left: 0px;  /*list-style-image:url("example.gif")*/}
   text-align: left;
 }	
 
-***  Year View Options BEGIN  *******/
+/***  Year View Options BEGIN  *******/
 .yearCalendar {
   vertical-align:top;
-  border:0px solid #808080;
-  xborder-collapse:collapse;
+  border:1px solid #808080;
+  border-collapse:collapse;
   width:100%;
   text-align: center;
 }		
 
 .yearCalendarMonth {
   vertical-align:top;
-  border:1px solid #808080;
   border-collapse:collapse;
   width:100%;
   text-align: center;

@@ -14,8 +14,8 @@ class CalendarArticle
     var $eventname = ""; // 1st line of body; unformated plain text
     var $body = ""; // everything except line 1 in the event page
     var $html = ""; // html link displayed in calendar
-    var $isImage = false;
     var $anchor = "";
+    var $is_template = false;
 
     function CalendarArticle($month, $day, $year){
         $this->month = $month;
@@ -33,35 +33,97 @@ class CalendarArticle
 
 class CalendarArticles
 {
-    public $arrArticles = array();
-    public $wikiRoot = "";
-    private $arrTimeTrack = array();
-    private $arrStyle = array();
+    var $arrEvents = array();
+    var $wikiRoot = "";
+    var $arrTimeTrack = array();
+    var $arrStyle = array();
+
+    static function eventtime_sort($a, $b)
+    {
+        $r = ($b->is_template?1:0)-($a->is_template?1:0); if ($r != 0) return $r;
+        $r = $a->year-$b->year; if ($r != 0) return $r;
+        $r = $a->month-$b->month; if ($r != 0) return $r;
+        $r = $a->day-$b->day; if ($r != 0) return $r;
+        return strcmp($a->eventname, $b->eventname);
+    }
+
+    // this is the MAIN function that returns the events to the calendar...
+    // there shouldn't be ANY formatting or logic done here....
+    public function getArticleLinks($month, $day, $year)
+    {
+        $ret = $list = "";
+        $bFound = false;
+
+        // we want to format the normal 'add event' items in 1 table cell
+        // this creates less spacing and creates a better <ul>
+        $head = "<tr cellpadding=0 cellspacing=0 ><td class='calendarTransparent singleEvent'>";
+        $head .= "<ul class='bullets'>";
+        $foot = "</ul></td></tr>";
+
+        if(isset($this->arrEvents))
+        {
+            // sort them by time
+            usort($this->arrEvents, 'WikiCalendar::eventtime_sort');
+            foreach($this->arrEvents as $cArticle)
+            {
+                if ($cArticle->month == $month && $cArticle->day == $day && $cArticle->year == $year)
+                {
+                    $n = $cArticle->eventname;
+                    $link = $cArticle->page . ($cArticle->anchor ? '#' . $cArticle->anchor : '');
+                    if (($p = strpos($n, '[[')) === false)
+                    {
+                        // add a wiki-link
+                        $n = '[[' . $link . '|' . $n . ']]';
+                    }
+                    elseif (($p1 = strpos($n, ':', $p)) !== false &&
+                        $wgLang->getNsIndex(substr($n, $p+2, $p1-$p-2)) == NS_IMAGE &&
+                        ($p1 = strpos($n, ']]', $p)) !== false)
+                    {
+                        // add link= to image
+                        $n = substr($n, 0, $p1) . '|link=' . $link . substr($n, $p1);
+                    }
+                    $n .= "<br />";
+                    $list .= CalendarCommon::parse($n);
+                    $bFound = true;
+                }
+            }
+        }
+
+        if($bFound)
+            $ret .= $head . $list . $foot;
+
+        return $ret;
+    }
 
     // build an event based on the 1st line or ==event== type
-    public function addArticle($month, $day, $year, $page){
+    public function addArticle($month, $day, $year, $page, $is_template = false)
+    {
         $lines = array();
         $temp = "";
 
-        if(!is_object($page)) $page = Title::newFromText($page);
+        if (!is_object($page))
+            $page = Title::newFromText($page);
         $article = new Article($page);
-        if(!$article->exists()) return "";
+        if (!$article->exists())
+            return;
 
         $redirectCount = 0;
 
-        if( $article->isRedirect() && $this->setting('disableredirects') ) return '';
+        if ($article->isRedirect() && $this->setting('disableredirects'))
+            return '';
 
-        while($article->isRedirect() && $redirectCount < 10){
+        while ($article->isRedirect() && $redirectCount < 10) // FIXME remove hardcode (10)
+        {
             $redirectedArticleTitle = Title::newFromRedirect($article->getContent());
             $article = new Article($redirectedArticleTitle);
             $redirectCount += 1;
         }
 
-        $body = $article->fetchContent(0,false,false);
+        $body = trim($article->fetchContent(0, false, false));
+        if ($body == "")
+            return "";
 
-        if(strlen(trim($body)) == 0) return "";
-
-        $lines = split("\n",trim($body));
+        $lines = split("\n", $body);
 
         // dont use section events... only line 1 of the page
         $head = array();
@@ -98,11 +160,10 @@ class CalendarArticles
             $head[] = $last;
 
         foreach ($head as $ev)
-            $this->buildEvent($month, $day, $year, trim($ev['name']), $page, $ev['body'], 'addevent', false, $ev['anchor']);
+            $this->add($month, $day, $year, trim($ev['name']), $page, $ev['body'], $ev['anchor'], $is_template ? 'template' : 'addevent');
     }
 
-    // this is the main logic/format handler; the '$event' is checked for triggers here...
-    public function buildEvent($month, $day, $year, $event, $page, $body, $eventType='addevent', $bRepeats=false, $anchor='')
+    public function buildEvent($month, $day, $year, $event, $page, $body, $eventType = 'addevent', $bRepeats = false, $anchor = '')
     {
         // user triggered yearly repeat event...
         if(substr($event,0,2) == '##'){
@@ -110,123 +171,24 @@ class CalendarArticles
             $this->buildRecurrenceEvent($month, $day, $year, $event, $page);
         }
 
-        //check for repeating events
-        $arrEvent = split("#",$event);
-        if( isset($arrEvent[1]) && ($arrEvent[0] != 0) && $this->setting('enablerepeatevents') )
+        // check for repeating events
+        $arrEvent = split("#", $event);
+        if (isset($arrEvent[1]) && ($arrEvent[0] != 0) && $this->setting('enablerepeatevents'))
         {
-            for($i=0; $i<$arrEvent[0]; $i++)
+            for($i = 0; $i < $arrEvent[0]; $i++)
             {
-                $this->add($month, $day, $year, $arrEvent[1], $page, $body, false, true);
+                $this->add($month, $day, $year, $arrEvent[1], $page, $body, $anchor, false, true);
                 list($month, $day, $year) = CalendarCommon::datemath(1, $month, $day, $year);
             }
         }
         else
-            $this->add($month, $day, $year, $event, $page, $body, $eventType, $bRepeats, $anchor);
-    }
-
-    static function eventtime_sort($a, $b)
-    {
-        $r = $a->year-$b->year; if ($r != 0) return $r;
-        $r = $a->month-$b->month; if ($r != 0) return $r;
-        $r = $a->day-$b->day; if ($r != 0) return $r;
-        return strcmp($a->eventname, $b->eventname);
-    }
-
-    // this is the MAIN function that returns the events to the calendar...
-    // there shouldn't be ANY formatting or logic done here....
-    public function getArticleLinks($month, $day, $year)
-    {
-        $ret = $list = "";
-        $bFound = false;
-
-        // not using 'templates' array, but the purpose was to put all these events above other events...
-        if(isset($this->arrArticles['templates']))
-            foreach($this->arrArticles['templates'] as $cArticle)
-                if($cArticle->month == $month && $cArticle->day == $day && $cArticle->year == $year)
-                    $ret .= $cArticle->html;
-
-        // we want to format the normal 'add event' items in 1 table cell
-        // this creates less spacing and creates a better <ul>
-        $head = "<tr cellpadding=0 cellspacing=0 ><td class='calendarTransparent singleEvent'>";
-        $head .= "<ul class='bullets'>";
-        $foot = "</ul></td></tr>";
-
-        if(isset($this->arrArticles['events']))
-        {
-            // sort them by time
-            usort($this->arrArticles['events'], 'WikiCalendar::eventtime_sort');
-            foreach($this->arrArticles['events'] as $cArticle)
-            {
-                if ($cArticle->month == $month && $cArticle->day == $day && $cArticle->year == $year)
-                {
-                    $n = $cArticle->eventname;
-                    $link = $cArticle->page . ($cArticle->anchor ? '#' . $cArticle->anchor : '');
-                    if (($p = strpos($n, '[[')) === false)
-                    {
-                        // add a wiki-link
-                        $n = '[[' . $link . '|' . $n . ']]';
-                    }
-                    elseif (($p1 = strpos($n, ':', $p)) !== false &&
-                        $wgLang->getNsIndex(substr($n, $p+2, $p1-$p-2)) == NS_IMAGE &&
-                        ($p1 = strpos($n, ']]', $p)) !== false)
-                    {
-                        // add link= to image
-                        $n = substr($n, 0, $p1) . '|link=' . $link . substr($n, $p1);
-                    }
-                    $n .= "<br />";
-                    $list .= CalendarCommon::parse($n);
-                    $bFound = true;
-                }
-            }
-        }
-
-        if($bFound)
-            $ret .= $head . $list . $foot;
-
-        return $ret;
-    }
-
-    // when the calendar loads, we want to put all the template events into memory
-    // so we dont have to read the wiki db for every day
-    public function addTemplate($month, $year, $pagename){
-        $displayText = "";
-        $arrEvent = array();
-
-        $articleName = $pagename . "/" . $month . "-" . $year . " -Template";
-        $article = new Article(Title::newFromText($articleName));
-
-        if (!$article->exists()) return "";
-
-        $displayText  = $article->fetchContent(0,false,false);
-
-        $arrAllEvents=split(chr(10),$displayText);
-        if (count($arrAllEvents) > 0){
-            for($i=0; $i<count($arrAllEvents); $i++){
-                $arrEvent = split("#",$arrAllEvents[$i]);
-
-                if(!isset($arrEvent[1])) continue;//skip
-
-                if(strlen($arrEvent[1]) > 0){
-                    $day = $arrEvent[0];
-                    $arrRepeat = split("-",$arrEvent[0]);
-
-                    if(count($arrRepeat) > 1){
-                        $day = $arrRepeat[0];
-                        while($day <= $arrRepeat[1]){
-                            $this->buildEvent($month, $day, $year,  $arrEvent[1], $articleName, "", "templates", true);
-                            $day++;
-                        }
-                    }else{
-                        $this->buildEvent($month, $day, $year, $arrEvent[1], $articleName, "", "templates");
-                    }
-                }
-            }
-        }
+            $this->add($month, $day, $year, $event, $page, $body, $anchor, $eventType, $bRepeats);
     }
 
     // this is the FINAL stop; the events are stored here then pulled out
     // and displayed later via "getArticleLinks()"...
-    private function add($month, $day, $year, $eventname, $page, $body, $eventType='addevent', $bRepeats=false, $anchor=''){
+    private function add($month, $day, $year, $eventname, $page, $body, $anchor = '', $eventType = 'addevent', $bRepeats = false)
+    {
         // $eventType='default' -- addevent
         // $eventType='recurrence'
         // $eventType='template'
@@ -239,12 +201,12 @@ class CalendarArticles
         // lets get the body char limit
         $summaryLength = $this->setting('enablesummary',false);
 
-        $html_link = $this->articleLink($page, $temp);
-
         // format for different event types
         $class = "baseEvent ";
-        if($bRepeats) $class .= "repeatEvent ";
-        if($eventType == "recurrence") $class .= "recurrenceEvent ";
+        if($bRepeats)
+            $class .= "repeatEvent ";
+        if($eventType == "recurrence")
+            $class .= "recurrenceEvent ";
         $class = trim($class);
 
         $cArticle->month = $month;
@@ -254,23 +216,20 @@ class CalendarArticles
         $cArticle->eventname = $temp;
         $cArticle->body = $body;
         $cArticle->anchor = $anchor;
-
-        $cArticle->isImage = $eventType;
+        if ($eventType == 'template')
+            $cArticle->is_template = true;
 
         // wik-a-fi the $body; however, cut off text could cause html issues... so try to
         // keep all required body wiki/html to the top
-        $parsedBody = $wgParser->recursiveTagParse( CalendarCommon::limitText($cArticle->body, $summaryLength) );
+        $parsedBody = $wgParser->recursiveTagParse(CalendarCommon::limitText($cArticle->body, $summaryLength));
 
-        // this will be the main link displayed in the calendar....
-        $cArticle->html = "<span class='$class'>$html_link</span><br/>" . $parsedBody;
-
-        $this->arrArticles['events'][] = $cArticle;
-
+        $this->arrEvents[] = &$cArticle;
         $this->addToIndex($cArticle);
     }
 
-    private function addToIndex($cArticle)
+    private function addToIndex(&$cArticle)
     {
+        $date = sprintf("%04d-%02d-%02d", $cArticle->year, $cArticle->month, $cArticle->day);
         if (preg_match('/(\d\d:\d\d(:\d\d)?)[^\w:]*(\d\d:\d\d(:\d\d)?)/s', $cArticle->eventname, $m))
         {
             $min = $m[1];
@@ -285,8 +244,9 @@ class CalendarArticles
                 $min = $max;
                 $max = $t;
             }
-            $this->index[sprintf("%04d-%02d-%02d", $cArticle->year, $cArticle->month, $cArticle->day)][] = array($min, $max);
+            $this->index[$date][] = array($min, $max, &$cArticle);
         }
+        $this->index['articles'][$date][] = &$cArticle;
     }
 
     // this function checks a template event for a time trackable value
@@ -371,7 +331,7 @@ class CalendarArticles
 
         $html = '';
         // addeventsbyhour = 8..21 by default
-        if ($range = $this->setting('addeventsbyhour'))
+        if ($text == "" && ($range = $this->setting('addeventsbyhour')))
         {
             list($min, $max) = split('..', $range);
             if (!$max || $min < 0 || $max > 23)
@@ -494,53 +454,8 @@ class CalendarArticles
         return $params;
     }
 
-    // returns the link for an article, along with summary in the title tag, given a name
-    private function articleLink($title, $text, $noLink=false){
-        if(strlen($text)==0) return "";
-        $arrText = $this->buildTextAndHTMLString($text);
-        $style = $arrText[2];
-
-        //locked links
-        if($this->setting('disablelinks') || $noLink)
-            $ret = "<span $style>" . $arrText[1] . "</span>";
-        else
-            if($this->setting('defaultedit'))
-                $ret = "<a $style title='$arrText[0]' href='" . $this->wikiRoot . wfUrlencode($title) . "&action=edit'>$arrText[1]</a>";
-            else
-                $ret = "<a $style title='$arrText[0]' href='" . $this->wikiRoot . wfUrlencode($title)  . "'>$arrText[1]</a>";
-
-        return $ret;
-    }
-
-    private function buildTextAndHTMLString($string){
-
-        $string = CalendarCommon::cleanWiki($string);
-        $htmltext = $string;
-        $plaintext = strip_tags($string);
-        $charlimit = $this->setting('charlimit',false);
-
-        if(mb_strlen($plaintext) > $charlimit) {
-            $temp = mb_substr($plaintext,0,$charlimit) . "..."; //plaintext
-            $ret[0] = $plaintext; //full plain text
-            $ret[1] = str_replace($plaintext, $temp, $htmltext); //html
-            $ret[2] = ""; //styles
-        }
-        else{
-            $ret[0] = $plaintext; //full plain text
-            $ret[1] = $htmltext;
-            $ret[2] = ""; //styles
-        }
-
-        if(!$this->setting('disablestyles'))
-            $ret[2] = $this->buildStyleBySearch($plaintext);
-
-        return $ret;
-    }
-
-
-
-    private function buildStyleBySearch($text){
-
+    private function buildStyleBySearch($text)
+    {
         $stylePage = '';
 
         // set default style if available, if not... use std windows defaults
@@ -555,7 +470,6 @@ class CalendarArticles
             }
         }
 
-        //return "style='" . str_replace("'", "", "$defaultStyle;$stylePage") . "' ";
         return "style='$defaultStyle;$stylePage' ";
     }
 
@@ -736,24 +650,6 @@ class CalendarArticles
 
         return $events;
     }
-
-    // any custom MW tags or code can be filtered out here...
-    // this is only for calendar event display and doesn't edit the article itself
-    private function cleanEventData($content){
-
-        $ret = $content;
-
-        // remove [[xyz]] type strings...
-        $ret = preg_replace('[(\[\[)+.+(\]\])]', '', $ret);
-
-        // remove  __xyz__   type strings...
-        $ret = preg_replace('[(__)+.+(__)]', '', $ret);
-
-        // remove  {{xyz}}  type strings...
-        $ret = preg_replace('[({{)+.+(}})]', '', $ret);
-
-        return $ret;
-    }
 }
 
 /**
@@ -885,7 +781,7 @@ class WikiCalendar extends CalendarArticles
     {
         $title = Title::newFromText($this->calendarPageName);
         $this->buildLastArticles($this->setting('limit'));
-        usort($this->arrArticles['events'], 'WikiCalendar::eventtime_sort');
+        usort($this->arrEvents, 'WikiCalendar::eventtime_sort');
         $feed = array(
             'name' => wfMsg('calendar-rss-title', $title),
             'info' => CalendarCommon::parse(wfMsgNoTrans('calendar-rss-info', $title)),
@@ -893,9 +789,9 @@ class WikiCalendar extends CalendarArticles
             'date' => false,
             'items' => array(),
         );
-        for ($i = count($this->arrArticles['events'])-1; $i >= 0; $i--)
+        for ($i = count($this->arrEvents)-1; $i >= 0; $i--)
         {
-            $a = $this->arrArticles['events'][$i];
+            $a = $this->arrEvents[$i];
             if (preg_match('/(\d{2}):(\d{2})(:(\d{2}))?/', $a->eventname, $m))
                 $time = mktime($m[1], $m[2], intval($m[4]), $a->month, $a->day, $a->year);
             else
@@ -945,23 +841,13 @@ class WikiCalendar extends CalendarArticles
         $this->initalizeHTML();
         $this->readStylepage();
 
-        if($this->setting('usetemplates'))
-            $this->buildTemplateEvents();
-
         if(!$this->setting('disablerecurrences'))
             $this->buildVCalEvents();
 
         if($this->paramstring != '')
             $this->buildTagEvents($this->paramstring);
 
-        //grab last months events for overlapped repeating events
-        if($this->setting('enablerepeatevents')){
-            $daysBack = $this->setting('enablerepeatevents',false);
-            if($daysBack == '') $daysBack = 15; //default - this checks 1/2 way into the previous month
-            $this->initalizeMonth( ($this->day + $daysBack), 0);
-        }
-        else
-            $this->initalizeMonth($this->day, 0); // just go back to the 1st of the current month
+        $this->initalizeMonth();
 
         // what mode we going into
         if($userMode == 'year')
@@ -991,28 +877,6 @@ class WikiCalendar extends CalendarArticles
         $this->buildRssLink();
 
         return $ret;
-    }
-
-    // build the months articles into memory
-    // $back: days back from ($this->day)
-    // $forward: days ahead from ($this->day)
-    function initalizeMonth($back, $forward)
-    {
-        wfProfileIn(__METHOD__);
-
-        // just make sure we have a solid negitive here
-        $back = -(abs($back));
-
-        $cnt = abs($back) + $forward;
-
-        list($month, $day, $year) = CalendarCommon::datemath($back, $this->month, $this->day, $this->year);
-
-        for ($i = 1; $i <= $cnt; $i++) {
-            // TODO buildArticlesForMonth (...<=substr(page_title,...)<=...)
-            $this->buildArticlesForDay($month, $day, $year);
-            list($month, $day, $year) = CalendarCommon::datemath(1, $month, $day, $year);
-        }
-        wfProfileOut(__METHOD__);
     }
 
     function initalizeHTML()
@@ -1090,7 +954,7 @@ class WikiCalendar extends CalendarArticles
 
     // Generate the HTML for a given month
     // $day may be out of range; if so, give blank HTML
-    function getHTMLForDay($month, $day, $year, $dateFormat='default', $mode='month'){
+    function getHTMLForDay($month, $day, $year, $dateFormat='default', $mode='month', $simpleadd=false){
         $tag_eventList = $tag_dayCustom = "";
         $tag_dayweekyear = "";
 
@@ -1149,7 +1013,7 @@ class WikiCalendar extends CalendarArticles
         $tag_eventList = $this->getArticleLinks($month, $day, $year, true);
 
         // build Add event bar after building event list
-        $tag_addEvent = $this->buildAddEventLink($month, $day, $year);
+        $tag_addEvent = $this->buildAddEventLink($month, $day, $year, $simpleadd ? '+' : '');
 
         // no events, then return nothing!
         if((strlen($tag_eventList) == 0) && ($mode == 'events')) return "";
@@ -1227,23 +1091,6 @@ class WikiCalendar extends CalendarArticles
         return $html;
     }
 
-    // build the 'template' button
-    function buildTemplateLink(){
-        if(!$this->setting('usetemplates')) return "";
-
-        $articleName = $this->wikiRoot . wfUrlencode($this->calendarPageName) . "/" . $this->month . "-" . $this->year . " -Template&action=edit" . "'\">";
-
-        $value = CalendarCommon::translate('template_btn');
-        $title = CalendarCommon::translate('template_btn_tip');
-
-        if($this->setting('locktemplates'))
-            $ret = "<input class='btn' type='button' title='$title' disabled value=\"$value\" onClick=\"javascript:document.location='" . $articleName;
-        else
-            $ret = "<input class='btn' type='button' title='$title' value=\"$value\" onClick=\"javascript:document.location='" . $articleName;
-
-        return $ret;
-    }
-
     function loadiCalLink()
     {
         global $wgContLang;
@@ -1297,19 +1144,22 @@ class WikiCalendar extends CalendarArticles
             $this->calendarMode = "eventlist";
             $daysOut = ($setting <= 120 ? $setting : 120);
 
-            $month = date('m');
-            $day = date('d');
-            $year = date('Y');
+            $this->month = date('m');
+            $this->day = date('d');
+            $this->year = date('Y');
 
-            // build the days out....
-            $this->initalizeMonth(0, $daysOut);
-
+            $lm = '';
             for ($i = 0; $i < $daysOut; $i++)
             {
-                $temp = $this->getHTMLForDay($month, $day, $year, 'long', 'events');
+                if ($lm != ($nm = sprintf("%04d-%02d", $this->year, $this->month)))
+                {
+                    $this->initalizeMonth();
+                    $lm = $nm;
+                }
+                $temp = $this->getHTMLForDay($this->month, $this->day, $this->year, 'long', 'events');
                 if (strlen(trim($temp)) > 0)
                     $events .= "<tr>" . $temp . "</tr>";
-                list($month, $day, $year) = CalendarCommon::datemath(1, $month, $day, $year);
+                list($this->month, $this->day, $this->year) = CalendarCommon::datemath(1, $this->month, $this->day, $this->year);
             }
 
             $ret = "<i> " . $this->buildConfigLink(true) . "</i>" . $events;
@@ -1317,25 +1167,6 @@ class WikiCalendar extends CalendarArticles
         }
         wfProfileOut(__METHOD__);
         return $ret;
-    }
-
-    function buildTemplateEvents()
-    {
-        $year = $this->year;
-        $month = 1;
-        $additionMonths = $this->month + 12;
-
-        // lets just grab the next 12 months...this load only takes about .01 second per subscribed calendar
-        for ($i = 0; $i < $additionMonths; $i++)
-        {
-            // loop thru 12 months
-            foreach($this->subscribedPages as $page)
-                $this->addTemplate($month, $year, $page);
-
-            $this->addTemplate($month, $year, ($this->calendarPageName));
-            $year = ($month == 12 ? ++$year : $year);
-            $month = ($month == 12 ? 1 : ++$month);
-        }
     }
 
     // load ical RRULE (recurrence) events into memory
@@ -1408,7 +1239,7 @@ class WikiCalendar extends CalendarArticles
     function renderDate()
     {
         wfProfileIn(__METHOD__);
-        $this->initalizeMonth(0,1);
+        $this->initalizeDay();
         $ret = $this->buildConfigLink(true) . $this->getHTMLForDay($this->month, $this->day, $this->year, 'long', 'day');
         $ret = "<table>$ret</table>";
         wfProfileOut(__METHOD__);
@@ -1501,10 +1332,6 @@ class WikiCalendar extends CalendarArticles
 
         $ret = "";          // the string to return
 
-        //build events into memory for the remainder of the month
-        //the previous days have already been loaded
-        $this->initalizeMonth(0, (32 - $this->day));
-
         /***** Build the known tag elements (non-dynamic) *****/
         // set the month's name tag
         if($this->name == 'Public')
@@ -1521,7 +1348,6 @@ class WikiCalendar extends CalendarArticles
         $tag_monthSelect =  $this->buildMonthSelectBox();;
         $tag_yearSelect = $this->buildYearSelectBox();
 
-        $tag_templateButton = $this->buildTemplateLink();
         $tag_configButton = $this->buildConfigLink(false);
 
         $style_value = CalendarCommon::translate('styles_btn');
@@ -1624,52 +1450,65 @@ class WikiCalendar extends CalendarArticles
         $tempString = str_replace("[[About]]", $tag_about, $tempString);
 
         $ret .= $tempString;
-        $ret = $this->stripLeadingSpace($ret);
+        $ret = preg_replace('/^[ \t]+/m', '', $ret);
 
         wfProfileOut(__METHOD__);
         return $ret;
     }
 
     // this generates the logic and the html to organize where the days go in the "grid"
-    function getMonthHTML($month, $year, $simplemonth=false){
+    function getMonthHTML($month, $year, $simplemonth = false)
+    {
         $offset = 1;
-        $dayOfWeek = date('N', mktime(12, 0, 0, $month, 1, $year));    // 0-6
+        $dayOfWeek = date('N', mktime(12, 0, 0, $month, 1, $year)); // 0-6
         $daysInMonth = CalendarCommon::getDaysInMonth($month,$year); // 28-31
-        $weeksInMonth = ceil( ($dayOfWeek + $daysInMonth)/7 ) ; // 4-6
+        $weeksInMonth = ceil(($dayOfWeek + $daysInMonth)/7); // 4-6
 
-        if( $this->setting("monday") && !$this->setting("5dayweek") ) $offset = 2;
+        if ($this->setting("monday") && !$this->setting("5dayweek"))
+            $offset = 2;
 
         $counter = $theDay = -($dayOfWeek-$offset);
         $ret = "";
 
         $bfiveDayWeek = $this->setting("5dayweek");
 
-        for ($week = 0; $week < $weeksInMonth; $week+=1){
+        for ($week = 0; $week < $weeksInMonth; $week++)
+        {
             $bValidWeek = false;
             $temp = "<tr>";
 
-            for ($day = 0; $day < 7; $day+=1){
+            for ($day = 0; $day < 7; $day++)
+            {
                 $bSkipDay = false;
 
+                if ($counter > $daysInMonth)
+                    $theDay = 0; // we want these days to be grey or empty...etc
 
-                if($counter > $daysInMonth) $theDay = 0; // we want these days to be grey or empty...etc
-
-                if( ($day == 0 or $day == 6) && $bfiveDayWeek ){
+                if (($day == 0 or $day == 6) && $bfiveDayWeek)
                     $bSkipDay = true;
-                }
 
-                if( !$bSkipDay ){
-                    if($theDay > 0) $bValidWeek = true;
+                if (!$bSkipDay)
+                {
+                    if ($theDay > 0)
+                        $bValidWeek = true;
 
-                    if($simplemonth){
-                        $todayStyle = "style='background-color: #C0C0C0;font-weight:bold;'";
-                        $link = $this->buildAddEventLink($month, $theDay, $year, $theDay);
-
-                        $temp .= "<td class='yearWeekday $todayStyle'>$link</td>";
+                    if ($simplemonth)
+                    {
+                        $link = '';
+                        if ($theDay > 0)
+                        {
+                            $dd = sprintf("%04d-%02d-%02d", $year, $month, $theDay);
+                            if (date('Y-m-d') == $dd)
+                                $todayStyle = "style='background-color:#e0e0e0;font-weight:bold;'";
+                            else
+                                $todayStyle = '';
+                            $link = count($this->index['articles'][$dd]);
+                            $link = '<span style="color:gray">'.$theDay.'</span>' . ($link ? '<br />x' . $link : '');
+                        }
+                        $temp .= "<td class='yearWeekday' $todayStyle>$link</td>";
                     }
-                    else{
+                    else
                         $temp .= $this->getHTMLForDay($month, $theDay, $year);
-                    }
                 }
 
                 $counter++;
@@ -1691,7 +1530,6 @@ class WikiCalendar extends CalendarArticles
     // the returned results include the text between the search strings,
     // else an empty string will be returned if not found.
     function searchHTML($html, $beginString, $endString) {
-
         $temp = split($beginString, $html);
         if (count($temp) > 1) {
             $temp = split($endString, $temp[1]);
@@ -1700,108 +1538,127 @@ class WikiCalendar extends CalendarArticles
         return "";
     }
 
-    // strips the leading spaces and tabs from lines of HTML (to prevent <pre> tags in Wiki)
-    function stripLeadingSpace($html) {
+    // build the day articles into memory
+    function initalizeDay()
+    {
+        wfProfileIn(__METHOD__);
 
-        $index = 0;
-
-        $temp = split("\n", $html);
-
-        $tempString = "";
-        while ($index < count($temp)) {
-        while (strlen($temp[$index]) > 0
-           && (substr($temp[$index], 0, 1) == ' ' || substr($temp[$index], 0, 1) == '\t')) {
-        $temp[$index] = substr($temp[$index], 1);
+        $range = array();
+        $d = sprintf("%02d", $this->day);
+        $m = sprintf("%02d", $this->month);
+        $y = sprintf("%04d", $this->year);
+        if ($this->setting('usetemplates'))
+        {
+            $range[] = array("XXXX-XX-$d", "XXXX-XX-$d");
+            $range[] = array("XXXX-$m-$d", "XXXX-$m-$d");
+            $range[] = array("$y-XX-$d", "$y-XX-$d");
         }
-            $tempString .= $temp[$index];
-            $index += 1;
-        }
+        $range[] = array("$y-$m-$d", "$y-$m-$d");
 
-        return $tempString;
+        $this->buildRanges($range);
+
+        wfProfileOut(__METHOD__);
     }
 
-    function cleanDayHTML($tempString){
-        // kludge to clean classes from "day" only parameter; causes oddness if the main calendar
-        // was displayed with a single day calendar on the same page... the class defines carried over...
-        $tempString = str_replace("calendarTransparent", "", $tempString);
-        $tempString = str_replace("calendarDayNumber", "", $tempString);
-        $tempString = str_replace("calendarEventAdd", "", $tempString);
-        $tempString = str_replace("calendarEventList", "", $tempString);
+    // build the months articles into memory
+    function initalizeMonth()
+    {
+        wfProfileIn(__METHOD__);
 
-        $tempString = str_replace("calendarToday", "", $tempString);
-        $tempString = str_replace("calendarMonday", "", $tempString);
-        $tempString = str_replace("calendarTuesday", "", $tempString);
-        $tempString = str_replace("calendarWednesday", "", $tempString);
-        $tempString = str_replace("calendarThursday", "", $tempString);
-        $tempString = str_replace("calendarFriday", "", $tempString);
-        $tempString = str_replace("calendarSaturday", "", $tempString);
-        $tempString = str_replace("calendarSunday", "", $tempString);
+        $min = array($this->month, 1, $this->year);
+        $max = $min;
+        $max[0]++;
+        if ($max[0] > 12)
+        {
+            $max[0] = 1;
+            $max[2]++;
+        }
+        $max = CalendarCommon::datemath(-1, $max[0], $max[1], $max[2]);
+        $min = array(sprintf("%04d", $min[2]), sprintf("%02d", $min[0]), sprintf("%02d", $min[1]));
+        $max = array(sprintf("%04d", $max[2]), sprintf("%02d", $max[0]), sprintf("%02d", $max[1]));
+        $range = array();
+        if ($this->setting('usetemplates'))
+        {
+            $range[] = array('XXXX-XX-'.$min[2], 'XXXX-XX-'.$max[2]);
+            $range[] = array('XXXX-'.$min[1].'-'.$min[2], 'XXXX-'.$max[1].'-'.$max[2]);
+            $range[] = array($min[0].'-XX-'.$min[2], $max[0].'-XX-'.$max[2]);
+        }
+        $range[] = array($min[0].'-'.$min[1].'-'.$min[2], $max[0].'-'.$max[1].'-'.$max[2]);
 
-        return $tempString;
+        $this->buildRanges($range);
+
+        wfProfileOut(__METHOD__);
+    }
+
+    function buildRanges($ranges)
+    {
+        wfProfileIn(__METHOD__);
+
+        $pages = $this->subscribedPages;
+        $pages[] = $this->calendarPageName;
+        foreach ($ranges as $r)
+            foreach ($pages as $page)
+                $this->buildArticleRange(Title::newFromText($page), $r[0], $r[1]);
+
+        wfProfileOut(__METHOD__);
     }
 
     // builds the last changed events into memory (for RSS)
-    function buildLastArticles($n = NULL)
+    function buildLastArticles($n = NULL, $parent = NULL)
     {
         if (!$n || $n < 1)
             $n = 30;
-        $search = Title::newFromText($this->calendarPageName.'/');
+        if (!$parent)
+            $parent = Title::newFromText($this->calendarPageName);
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title',
-            array('page_namespace' => $search->getNamespace(), 'page_title LIKE '.$dbr->addQuotes($search->getDBkey().'%')),
+            array('page_namespace' => $parent->getNamespace(), 'page_title LIKE '.$dbr->addQuotes($parent->getDBkey().'/%')),
             __METHOD__,
             array('ORDER BY' => 'page_touched DESC', 'LIMIT' => $n)
         );
-        $l = strlen($search->getDBkey());
+        $titles = array();
         while ($row = $dbr->fetchRow($result))
-        {
-            $page = Title::newFromText($row['page_title'], $row['page_namespace']);
-            $t = substr($page->getText(), $l);
-            if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/s', $t, $m))
-            {
-                $year = intval($m[1]);
-                $month = intval($m[2]);
-                $day = intval($m[3]);
-                $this->addArticle($month, $day, $year, $page);
-            }
-        }
+            if ($row = Title::newFromText($row['page_title'], $row['page_namespace']))
+                $titles[] = $row;
         $dbr->freeResult($result);
+        $this->buildArticles($parent, $titles);
     }
 
-    // builds the day events into memory
-    // uses prefix seaching (NS:page/name/date)... anything after doesn't matter
-    function buildArticlesForDay($month, $day, $year)
+    // builds articles for given range
+    function buildArticleRange($parent, $min, $max)
     {
-        $date = sprintf("%04d-%02d-%02d", $year, $month, $day);
+        $this->i++;
+        $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min);
+        $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max);
+        $dbr = wfGetDB(DB_SLAVE);
+        $result = $dbr->select('page', 'page_namespace, page_title', array(
+            'page_namespace' => $parent->getNamespace(),
+            'page_title>='.$dbr->addQuotes($mintitle),
+            'page_title<='.$dbr->addQuotes($maxtitle),
+        ), __METHOD__);
+        $titles = array();
+        while ($row = $dbr->fetchRow($result))
+            if ($row = Title::newFromText($row['page_title'], $row['page_namespace']))
+                $titles[] = $row;
+        $dbr->freeResult($result);
+        $this->buildArticles($parent, $titles);
+    }
 
-        $search = "$this->calendarPageName/$date";
-        $pages = PrefixSearch::titleSearch( $search, '100');
-
-        foreach($pages as $page) {
-            $this->addArticle($month, $day, $year, $page);
-        }
-        unset ($pages);
-
-        // subscribed events
-        foreach($this->subscribedPages as $subscribedPage){
-            $search = "$subscribedPage/$date";
-            $pages = PrefixSearch::titleSearch( $search, '100' );
-            foreach($pages as $page)
-                $this->addArticle($month, $day, $year, $page);
-        }
-
-        // depreciated (around 1/1/2009)
-        // old format: ** name (12-15-2008) - Event 1 **
-        if($this->setting('enablelegacy')){
-            $date = "$month-$day-$year";
-            $name = $this->setting('name');
-            $search = "$this->namespace:$name ($date)";
-            $pages = PrefixSearch::titleSearch( $search, '100');
-
-            foreach($pages as $page) {
-                $this->addArticle($month, $day, $year, $page);
+    // builds articles from title array
+    function buildArticles($parent, $titles)
+    {
+        $l = strlen($parent->getDBkey())+1;
+        foreach ($titles as $page)
+        {
+            $t = substr($page->getText(), $l);
+            if (preg_match('/^(\d{4}|XXXX)-(\d{2}|XX)-(\d{2})/s', $t, $m))
+            {
+                $is_template = $m[1] == 'XXXX' || $m[2] == 'XX';
+                $year = $m[1] == 'XXXX' ? $this->year : intval($m[1]);
+                $month = $m[2] == 'XX' ? $this->month : intval($m[2]);
+                $day = intval($m[3]);
+                $this->addArticle($month, $day, $year, $page, $is_template);
             }
-            unset ($pages);
         }
     }
 
@@ -1872,34 +1729,34 @@ class WikiCalendar extends CalendarArticles
 
         $title = "<table class='yearCalendarMonth_x' width=100% cellpadding=0 cellspacing=0><td>$prev</td><td>" . $monthyear . "</td><td>$next</td></table>";
 
-        $header = "<table class='yearCalendarMonth'><tr><td style='font-size:9px' class='yearTitle'>$title</tr></table>";
+        $header = "<table class='yearCalendarMonth'><tr><td colspan='".($this->setting('5dayweek') ? 5 : 7)."' style='font-size:9px' class='yearTitle'>$title</tr>";
 
         $ret = "<tr>";
 
         if($this->setting('monday')){
             $ret .= "
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(2,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(3,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(4,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(5,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(6,'weekday'),0,1) . "</td>";
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(2,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(3,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(4,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(5,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(6,'weekday'),0,1) . "</td>";
             if(!$this->setting('5dayweek')){
                 $ret .=
-                    "<td class='yearHeading'>" . substr(CalendarCommon::translate(7,'weekday'),0,1) . "</td>
-                    <td class='yearHeading'>" . substr(CalendarCommon::translate(1,'weekday'),0,1) . "</td>";
+                    "<td class='yearHeading'>" . mb_substr(CalendarCommon::translate(7,'weekday'),0,1) . "</td>
+                    <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(1,'weekday'),0,1) . "</td>";
             }
         }
         else{
             $ret .= "
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(1,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(2,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(3,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(4,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . substr(CalendarCommon::translate(5,'weekday'),0,1) . "</td>";
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(1,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(2,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(3,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(4,'weekday'),0,1) . "</td>
+                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(5,'weekday'),0,1) . "</td>";
             if(!$this->setting('5dayweek')){
                 $ret .=
-                    "<td class='yearHeading'>" . substr(CalendarCommon::translate(6,'weekday'),0,1) . "</td>
-                    <td class='yearHeading'>" . substr(CalendarCommon::translate(7,'weekday'),0,1) . "</td>";
+                    "<td class='yearHeading'>" . mb_substr(CalendarCommon::translate(6,'weekday'),0,1) . "</td>
+                    <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(7,'weekday'),0,1) . "</td>";
             }
         }
 
@@ -1907,7 +1764,7 @@ class WikiCalendar extends CalendarArticles
 
         $hidden = $this->tag_HiddenData;
 
-        return "<form name='cal_frm' method='post'>" . $header . "<table class='yearCalendarMonth'>$ret</table>$hidden</form>";
+        return "<form name='cal_frm' method='post'>" . $header . "$ret</table>$hidden</form>";
     }
 
     function renderYear(){
