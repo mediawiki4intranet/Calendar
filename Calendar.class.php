@@ -905,10 +905,11 @@ class WikiCalendar extends CalendarArticles
             $body = trim($a->body);
             if (!$body)
                 $body = $a->eventname;
+            $a->page->setFragment('#'.$a->anchor);
             $item = array(
                 'title'   => $a->eventname,
                 'text'    => $body,
-                'guid'    => $feed['url'].'#'.md5($a->year.$a->month.$a->day.':'.$a->eventname),
+                'guid'    => $a->page->getFullUrl(),
                 'author'  => $author[0],
                 'created' => $time,
             );
