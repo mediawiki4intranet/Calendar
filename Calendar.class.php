@@ -847,8 +847,6 @@ class WikiCalendar extends CalendarArticles
         if($this->paramstring != '')
             $this->buildTagEvents($this->paramstring);
 
-        $this->initalizeMonth();
-
         // what mode we going into
         if($userMode == 'year')
             $ret = $this->renderYear();
@@ -1295,6 +1293,8 @@ class WikiCalendar extends CalendarArticles
     {
         wfProfileIn(__METHOD__);
         global $gCalendarVersion;
+
+        $this->initalizeMonth();
 
         $tag_templateButton = "";
 
@@ -1798,6 +1798,8 @@ class WikiCalendar extends CalendarArticles
     function renderWeek($fiveDay = false)
     {
         wfProfileIn(__METHOD__);
+
+        $this->initalizeMonth();
 
         // defaults
         $sunday = $saturday  = $ret = $week = "";
