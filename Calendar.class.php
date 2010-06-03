@@ -34,7 +34,6 @@ class CalendarArticle
 class CalendarArticles
 {
     var $arrEvents = array();
-    var $wikiRoot = "";
     var $arrTimeTrack = array();
     var $arrStyle = array();
 
@@ -306,8 +305,6 @@ class CalendarArticles
     // find the number of current events and "build" the <add event> link
     public function buildAddEventLink($month, $day, $year, $text="")
     {
-        global $wgOut;
-
         if($day < 1) return "";
         $section_new = '';
 
@@ -354,12 +351,7 @@ class CalendarArticles
                 if ($h == $mid)
                     $html .= '<br />';
             }
-            // Add JS source if it is not present already
-            if (strpos($wgOut->mScripts, 'Calendar.addevent.js') === false)
-            {
-                global $wgScriptPath;
-                $wgOut->addScriptFile($wgScriptPath.'/extensions/Calendar/Calendar.addevent.js');
-            }
+            $this->addCalendarJS();
         }
         else
         {
@@ -374,7 +366,18 @@ class CalendarArticles
         return $html;
     }
 
-    public function indexHourUsed($date, $h)
+    function addCalendarJS()
+    {
+        global $wgOut;
+        // Add JS source if it is not present already
+        if (strpos($wgOut->mScripts, 'Calendar.addevent.js') === false)
+        {
+            global $wgScriptPath;
+            $wgOut->addScriptFile($wgScriptPath.'/extensions/Calendar/Calendar.addevent.js');
+        }
+    }
+
+    function indexHourUsed($date, $h)
     {
         if (!$this->index[$date])
             return false;
@@ -675,10 +678,8 @@ class WikiCalendar extends CalendarArticles
     var $invalidateCache = false;
     var $isFullSubscribe = false;
 
-    function WikiCalendar($wikiRoot)
+    function WikiCalendar()
     {
-        $this->wikiRoot = $wikiRoot;
-
         // set the calendar's initial date
         $now = getdate();
 
@@ -881,6 +882,10 @@ class WikiCalendar extends CalendarArticles
     {
         wfProfileIn(__METHOD__);
         global $wgOut,$wgScriptPath, $wgVersion;
+
+        if ($this->inithtml_ok)
+            return;
+        $this->inithtml_ok = true;
 
         $cssURL = $this->getURLRelativePath() . "/templates/";
 
@@ -1121,11 +1126,11 @@ class WikiCalendar extends CalendarArticles
         $value = CalendarCommon::translate('config_btn');
         $title = CalendarCommon::translate('config_btn_tip');
 
-        if(!$bTextLink){
-            $articleConfig = $this->wikiRoot . wfUrlencode($this->configPageName) . "&action=edit" . "';\">";
-            $ret = "<input class='btn' type='button' title='$title' value=\"$value\" onClick=\"javascript:document.location='" . $articleConfig;
-        }else
-            $ret = "<a href='" . $this->wikiRoot . wfUrlencode($this->configPageName) . "&action=edit'>($value...)</a>";
+        $articleConfig = Title::newFromText($this->configPageName)->getFullUrl(array('action' => 'edit'));
+        if(!$bTextLink)
+            $ret = "<input class='btn' type='button' title='$title' value=\"$value\" onClick=\"javascript:document.location='$articleConfig';\" />";
+        else
+            $ret = "<a href='$articleConfig'>($value...)</a>";
 
         return $ret;
     }
@@ -1237,6 +1242,7 @@ class WikiCalendar extends CalendarArticles
     function renderDate()
     {
         wfProfileIn(__METHOD__);
+        $this->initalizeHTML();
         $this->initalizeDay();
         $ret = $this->buildConfigLink(true) . $this->getHTMLForDay($this->month, $this->day, $this->year, 'long', 'day');
         $ret = "<table>$ret</table>";
@@ -1354,8 +1360,8 @@ class WikiCalendar extends CalendarArticles
         $style_tip = CalendarCommon::translate('styles_btn_tip');
 
         if(!$this->setting("disablestyles")){
-            $articleStyle = $this->wikiRoot . wfUrlencode($this->calendarPageName) . "/style&action=edit" . "';\">";
-            $tag_eventStyleButton = "<input class='btn' type=\"button\" title=\"$style_tip\" value=\"$style_value\" onClick=\"javascript:document.location='" . $articleStyle;
+            $articleStyle = Title::newFromText($this->calendarPageName.'/style')->getFullUrl(array('action' => 'edit'));
+            $tag_eventStyleButton = "<input class='btn' type=\"button\" title=\"$style_tip\" value=\"$style_value\" onClick=\"javascript:document.location='$articleStyle';\">";
         }
         $tag_eventStyleButton = $this->buildRssLink() . ' ' . $tag_eventStyleButton;
 
@@ -1472,6 +1478,9 @@ class WikiCalendar extends CalendarArticles
 
         $bfiveDayWeek = $this->setting("5dayweek");
 
+        $p = addslashes($this->calendarPageName);
+        $this->addCalendarJS();
+
         for ($week = 0; $week < $weeksInMonth; $week++)
         {
             $bValidWeek = false;
@@ -1502,10 +1511,15 @@ class WikiCalendar extends CalendarArticles
                                 $todayStyle = "style='background-color:#e0e0e0;font-weight:bold;'";
                             else
                                 $todayStyle = '';
-                            $link = count($this->index['articles'][$dd]);
-                            $link = '<span style="color:gray">'.$theDay.'</span>' . ($link ? '<br />x' . $link : '');
+                            //count($this->index['articles'][$dd]);
+                            $link = '<span style="color:gray">'.$theDay.'</span>';
                         }
-                        $temp .= "<td class='yearWeekday' $todayStyle>$link</td>";
+                        $temp .= "<td class='yearWeekday' $todayStyle";
+                        if ($link)
+                        {
+                            $temp .= " onmouseover='calendarshowdate(this.firstChild,\"$p\",\"$dd\")' onmouseout='this.firstChild.style.display=\"none\"'";
+                        }
+                        $temp .= "><div class='calpopup' style='display:none'></div>$link</td>";
                     }
                     else
                         $temp .= $this->getHTMLForDay($month, $theDay, $year);
@@ -1561,11 +1575,14 @@ class WikiCalendar extends CalendarArticles
     }
 
     // build the months articles into memory
-    function initalizeMonth()
+    function initalizeMonth($month = NULL, $year = NULL)
     {
         wfProfileIn(__METHOD__);
-
-        $min = array($this->month, 1, $this->year);
+        if (!$month)
+            $month = $this->month;
+        if (!$year)
+            $year = $this->year;
+        $min = array($month, 1, $year);
         $max = $min;
         $max[0]++;
         if ($max[0] > 12)
@@ -1630,11 +1647,12 @@ class WikiCalendar extends CalendarArticles
         $this->i++;
         $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min);
         $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max);
+        $l = strlen($mintitle);
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title', array(
             'page_namespace' => $parent->getNamespace(),
-            'page_title>='.$dbr->addQuotes($mintitle),
-            'page_title<='.$dbr->addQuotes($maxtitle),
+            'SUBSTR(page_title,1,'.$l.')>='.$dbr->addQuotes($mintitle),
+            'SUBSTR(page_title,1,'.$l.')<='.$dbr->addQuotes($maxtitle),
         ), __METHOD__);
         $titles = array();
         while ($row = $dbr->fetchRow($result))
@@ -1711,7 +1729,9 @@ class WikiCalendar extends CalendarArticles
         }
     }
 
-    function buildSimpleCalendar($month, $year, $disableNavButtons=false){
+    function buildSimpleCalendar($month, $year, $disableNavButtons=false)
+    {
+        $this->initalizeMonth($month, $year);
 
         $prev = $next = "";
 

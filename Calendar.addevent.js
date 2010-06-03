@@ -1,4 +1,5 @@
-function wikiaddevent(t,m,s) {
+function wikiaddevent(t,m,s)
+{
   var f = document.createElement('form');
   f.action = t;
   f.method = 'POST';
@@ -18,4 +19,17 @@ function wikiaddevent(t,m,s) {
   document.body.appendChild(f);
   f.submit();
   return false;
+}
+function calendarshowdate(el,title,date)
+{
+  el.style.display = '';
+  if (el.innerHTML != '')
+    return;
+  var f = function (request)
+  {
+    if (request.status != 200)
+      return;
+    el.innerHTML = request.responseText;
+  };
+  sajax_do_call('wfCalendarLoadDay', [title, date], f);
 }

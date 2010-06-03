@@ -39,6 +39,7 @@ $wgAutoloadClasses['CalendarCommon'] = "$path/Calendar.common.php";
 $wgAutoloadClasses['CalendarArticle'] = "$path/Calendar.class.php";
 $wgAutoloadClasses['CalendarArticles'] = "$path/Calendar.class.php";
 $wgHooks['UnknownAction'][] = 'wfCalendarUnknownAction';
+$wgAjaxExportList[] = 'wfCalendarLoadDay';
 
 function wfCalendarExtension()
 {
@@ -46,14 +47,36 @@ function wfCalendarExtension()
     $wgParser->setHook('calendar', 'wfCalendarDisplay');
 }
 
+function wfCalendarLoadDay($title, $date)
+{
+    CalendarCommon::parse('');
+    wfLoadExtensionMessages('wfCalendarExtension');
+    $calendar = new WikiCalendar();
+    $t = Title::newFromText($title);
+    $params = array();
+    $params['path'] = str_replace("\\", "/", dirname(__FILE__));
+    $params['title'] = Title::newFromText($t->prefix($t->getBaseText()));
+    $params['name'] = $t->getSubpageText();
+    $calendar->config($params);
+    $date = explode('-', $date);
+    $calendar->day = intval($date[2]);
+    $calendar->month = intval($date[1]);
+    $calendar->year = intval($date[0]);
+    ob_start();
+    $response = $calendar->renderDate();
+    $response .= ob_get_contents();
+    ob_end_flush();
+    return $response;
+}
+
 function wfCalendarUnknownAction($action, $article)
 {
     if ($action == 'rss-calendar')
     {
-        global $wgScript, $wgRequest;
-        wfLoadExtensionMessages( 'wfCalendarExtension' );
+        global $wgRequest;
+        wfLoadExtensionMessages('wfCalendarExtension');
         CalendarCommon::parse('');
-        $calendar = new WikiCalendar($wgScript . "?title=");
+        $calendar = new WikiCalendar();
         $params = $wgRequest->getValues();
         $t = $article->getTitle();
         $params['path'] = str_replace("\\", "/", dirname(__FILE__));
@@ -140,7 +163,7 @@ function wfCalendarRefresh()
 // most $params[] values are passed right into the calendar as is...
 function wfCalendarDisplay($paramstring, $params = array(), $parser)
 {
-    global $wgScript, $wgScriptPath, $wgRequest;
+    global $wgRequest;
     global $wgTitle, $wgUser;
     global $wgRestrictCalendarTo, $wgCalendarDisableRedirects;
     global $wgCalendarForceNamespace, $wgCalendarDateFormat;
@@ -150,10 +173,9 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     wfCalendarRefresh();
 
     $parser->disableCache();
-    $wikiRoot = $wgScript . "?title=";
     $userMode = 'month';
 
-    $calendar = new WikiCalendar($wikiRoot);
+    $calendar = new WikiCalendar();
 
     // set path
     $params['path'] = str_replace("\\", "/", dirname(__FILE__));

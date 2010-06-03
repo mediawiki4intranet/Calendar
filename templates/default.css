@@ -139,3 +139,5 @@ ul.bullets {padding-left: 0px;  /*list-style-image:url("example.gif")*/}
   font-size: 12px;
 }
 /******  Year View Options END  *******/		
+
+.calpopup { border: 1px solid red; padding: 0 3px; margin: 3px; position: absolute; background: white; }
