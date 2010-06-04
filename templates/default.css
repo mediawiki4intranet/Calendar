@@ -137,6 +137,7 @@ ul.bullets {padding-left: 0px;  /*list-style-image:url("example.gif")*/}
 .ydate_today { background-color: #f7be2f; color: black; }
 .ydate_shown { background-color: #fadc93; }
 .ydate_empty { color: #606060; font-weight: normal; }
+.ydate_n1 { background-color: #fff0f0; }
 .ydate_n2 { background-color: #ffe0e0; }
 .ydate_n3 { background-color: #ffd0d0; }
 .ydate_n4 { background-color: #ffc0c0; }
