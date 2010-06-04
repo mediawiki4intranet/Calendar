@@ -22,6 +22,7 @@ function wikiaddevent(t,m,s)
 }
 function calendarshowdate(el,title,date)
 {
+  el.parentNode.className = el.parentNode.className + ' ydate_shown';
   el.style.display = '';
   if (el.innerHTML != '')
     return;
@@ -32,4 +33,9 @@ function calendarshowdate(el,title,date)
     el.innerHTML = request.responseText;
   };
   sajax_do_call('wfCalendarLoadDay', [title, date], f);
+}
+function calendarhidedate(el)
+{
+  el.className = el.className.replace('ydate_shown', '');
+  el.firstChild.style.display = "none";
 }

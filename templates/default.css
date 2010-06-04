@@ -126,18 +126,22 @@ ul.bullets {padding-left: 0px;  /*list-style-image:url("example.gif")*/}
   font-size: 12px;
 }
 
-.yearWeekday {
-  text-align:center;
-  border:1px solid #808080;
-  font-size: 12px;
-}
-
 .yearWeekend {
   text-align:center;
   background-color:#EEEEEE;	
   border:1px solid #808080;
   font-size: 12px;
 }
-/******  Year View Options END  *******/		
 
-.calpopup { border: 1px solid red; padding: 0 3px; margin: 3px; position: absolute; background: white; }
+.yearWeekday { text-align: center; border: 1px solid #808080; font-size: 12px; font-weight: bold; }
+.ydate_today { background-color: #f7be2f; color: black; }
+.ydate_shown { background-color: #fadc93; }
+.ydate_empty { color: #606060; font-weight: normal; }
+.ydate_n2 { background-color: #ffe0e0; }
+.ydate_n3 { background-color: #ffd0d0; }
+.ydate_n4 { background-color: #ffc0c0; }
+.ydate_more5 { background-color: #ffc0c0; }
+
+/******  Year View Options END  *******/
+
+.calpopup { border: 1px solid red; padding: 0 3px; margin: 3px; position: absolute; background: white; text-align: left; }

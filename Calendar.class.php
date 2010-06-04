@@ -327,42 +327,43 @@ class CalendarArticles
         $title = Title::newFromText($articleName);
 
         $html = '';
-        // addeventsbyhour = 8..21 by default
+        $tip = CalendarCommon::translate('add_event_tip');
+        if ($this->setting('weekofyear'))
+            $tip .= " (wk:" . $this->getWeekOfTheYear($month,$day,$year,true) . ")";
         if ($text == "" && ($range = $this->setting('addeventsbyhour')))
         {
+            // display separate links for adding event to each hour
             list($min, $max) = split('..', $range);
+            // addeventsbyhour = 8..21 by default
             if (!$max || $min < 0 || $max > 23)
                 list($min, $max) = array(8, 21);
             $min = intval($min);
             $max = intval($max);
             $mid = intval(($min+$max) / 2);
-            // display separate links for adding event to each hour
-            foreach (range($min, $max) as $h)
-            {
-                if (!$sect)
-                {
-                    $articleName = $this->getNextAvailableArticle($this->calendarPageName, $date.sprintf(" %02d", $h));
-                    $title = Title::newFromText($articleName);
-                }
-                // JS and form POST is needed here because MW does not fill edit fields from GET requests
-                $onclick = sprintf("wikiaddevent('%s',".($sect ? "'wpSummary'" : "'wpTextbox1'").",'%02d:00-%02d:00')", $title->getFullURL($argv), $h, $h+1);
-                $used = $this->indexHourUsed($date, $h);
-                $html .= '<a href="javascript:void(0)" '.($used ? 'class="calendarUsed" ' : '').'onclick="'.htmlspecialchars($onclick,ENT_QUOTES).'">'.sprintf("%02d",$h).'</a> ';
-                if ($h == $mid)
-                    $html .= '<br />';
-            }
-            $this->addCalendarJS();
+            $hours = range($min, $max);
         }
         else
         {
             // Display only one link: "Add event"
             if ($text == "")
                 $text = CalendarCommon::translate("add_event");
-            $tip = CalendarCommon::translate('add_event_tip');
-            if ($this->setting('weekofyear'))
-                $tip .= " (wk:" . $this->getWeekOfTheYear($month,$day,$year,true) . ")";
-            $html = '<a title="'.$tip.'" href="' . $title->getFullURL($argv).'">'.$text.'</a>';
+            $hours = array(0);
         }
+        foreach ($hours as $h)
+        {
+            if (!$sect)
+            {
+                $articleName = $this->getNextAvailableArticle($this->calendarPageName, $date.sprintf(" %02d", $h));
+                $title = Title::newFromText($articleName);
+            }
+            // JS and form POST is needed here because MW does not fill edit fields from GET requests
+            $onclick = sprintf("wikiaddevent('%s',".($sect ? "'wpSummary'" : "'wpTextbox1'").",'%02d:00-%02d:00')", $title->getFullURL($argv), $h, $h+1);
+            $used = $this->indexHourUsed($date, $h);
+            $html .= '<a title="'.$tip.'" href="javascript:void(0)" '.($used ? 'class="calendarUsed" ' : '').'onclick="'.htmlspecialchars($onclick,ENT_QUOTES).'">'.($text ? $text : sprintf("%02d",$h)).'</a> ';
+            if ($h == $mid)
+                $html .= '<br />';
+        }
+        $this->addCalendarJS();
         return $html;
     }
 
@@ -1504,21 +1505,28 @@ class WikiCalendar extends CalendarArticles
                     if ($simplemonth)
                     {
                         $link = '';
+                        $class = array();
                         if ($theDay > 0)
                         {
                             $dd = sprintf("%04d-%02d-%02d", $year, $month, $theDay);
                             if (date('Y-m-d') == $dd)
-                                $todayStyle = "style='background-color:#e0e0e0;font-weight:bold;'";
+                                $class[] = 'today';
+                            if (!count($this->index['articles'][$dd]))
+                                $class[] = 'empty';
                             else
-                                $todayStyle = '';
-                            //count($this->index['articles'][$dd]);
-                            $link = '<span style="color:gray">'.$theDay.'</span>';
+                            {
+                                if (count($this->index['articles'][$dd]) > 4)
+                                    $class[] = 'more5';
+                                $class[] = 'n'.count($this->index['articles'][$dd]);
+                            }
+                            $link = $theDay;
                         }
-                        $temp .= "<td class='yearWeekday' $todayStyle";
+                        $temp .= "<td class='yearWeekday";
+                        foreach ($class as $c)
+                            $temp .= " ydate_$c";
+                        $temp .= "'";
                         if ($link)
-                        {
-                            $temp .= " onmouseover='calendarshowdate(this.firstChild,\"$p\",\"$dd\")' onmouseout='this.firstChild.style.display=\"none\"'";
-                        }
+                            $temp .= " onmouseover='calendarshowdate(this.firstChild,\"$p\",\"$dd\")' onmouseout='calendarhidedate(this)'";
                         $temp .= "><div class='calpopup' style='display:none'></div>$link</td>";
                     }
                     else
@@ -1647,7 +1655,7 @@ class WikiCalendar extends CalendarArticles
         $this->i++;
         $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min);
         $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max);
-        $l = strlen($mintitle);
+        $l = mb_strlen($mintitle->getDBkey());
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title', array(
             'page_namespace' => $parent->getNamespace(),
