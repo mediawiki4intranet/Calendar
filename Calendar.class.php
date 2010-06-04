@@ -1653,19 +1653,19 @@ class WikiCalendar extends CalendarArticles
     function buildArticleRange($parent, $min, $max)
     {
         $this->i++;
-        $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min);
-        $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max);
-        $l = mb_strlen($mintitle->getDBkey());
+        $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min)->getDBkey();
+        $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max)->getDBkey();
+        $l = mb_strlen($mintitle);
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title', array(
             'page_namespace' => $parent->getNamespace(),
-            'SUBSTR(page_title,1,'.$l.')>='.$dbr->addQuotes($mintitle),
-            'SUBSTR(page_title,1,'.$l.')<='.$dbr->addQuotes($maxtitle),
+            'STRCMP(SUBSTR(page_title,1,'.$l.'),'.$dbr->addQuotes($mintitle).')>=0',
+            'STRCMP(SUBSTR(page_title,1,'.$l.'),'.$dbr->addQuotes($maxtitle).')<=0',
         ), __METHOD__);
         $titles = array();
-        while ($row = $dbr->fetchRow($result))
+        while ($row = $dbr->fetchRow($result)) { #print strcmp($row['p'], $mintitle);
             if ($row = Title::newFromText($row['page_title'], $row['page_namespace']))
-                $titles[] = $row;
+                $titles[] = $row; }
         $dbr->freeResult($result);
         $this->buildArticles($parent, $titles);
     }
