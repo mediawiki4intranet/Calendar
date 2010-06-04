@@ -1663,9 +1663,9 @@ class WikiCalendar extends CalendarArticles
             'STRCMP(SUBSTR(page_title,1,'.$l.'),'.$dbr->addQuotes($maxtitle).')<=0',
         ), __METHOD__);
         $titles = array();
-        while ($row = $dbr->fetchRow($result)) { #print strcmp($row['p'], $mintitle);
+        while ($row = $dbr->fetchRow($result))
             if ($row = Title::newFromText($row['page_title'], $row['page_namespace']))
-                $titles[] = $row; }
+                $titles[] = $row;
         $dbr->freeResult($result);
         $this->buildArticles($parent, $titles);
     }
