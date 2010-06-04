@@ -1659,8 +1659,8 @@ class WikiCalendar extends CalendarArticles
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title', array(
             'page_namespace' => $parent->getNamespace(),
-            'STRCMP(SUBSTR(page_title,1,'.$l.'),'.$dbr->addQuotes($mintitle).')>=0',
-            'STRCMP(SUBSTR(page_title,1,'.$l.'),'.$dbr->addQuotes($maxtitle).')<=0',
+            'SUBSTR(page_title,1,'.$l.')>='.$dbr->addQuotes($mintitle),
+            'SUBSTR(page_title,1,'.$l.')<='.$dbr->addQuotes($maxtitle),
         ), __METHOD__);
         $titles = array();
         while ($row = $dbr->fetchRow($result))
