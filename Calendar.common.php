@@ -175,7 +175,8 @@ class CalendarCommon
             $parser = $wgParser;
         $oldoptions = $parser->mOptions;
         $parserOutput = $parser->parse(trim($line), $parser->mTitle ? $parser->mTitle : $wgTitle, self::$parserOptions, false, $parser->mFirstCall);
-        $parser->mOptions = $oldoptions;
+        if ($oldoptions)
+            $parser->mOptions = $oldoptions;
         return str_replace(array("<p>","</p>","\r","\n"), "", $parserOutput->mText);
     }
 }

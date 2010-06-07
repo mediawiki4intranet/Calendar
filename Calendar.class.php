@@ -1116,7 +1116,7 @@ class WikiCalendar extends CalendarArticles
 
         if(!$this->setting('useconfigpage')) return;
 
-        if($this->setting('useconfigpage',false) == 'disablelinks') return "";
+        if($this->setting('useconfigpage',false) == 'disablelink') return "";
 
         $value = CalendarCommon::translate('config_btn');
         $title = CalendarCommon::translate('config_btn_tip');
@@ -1779,6 +1779,8 @@ class WikiCalendar extends CalendarArticles
         foreach ($set as $k => $v)
             if (is_object($v))
                 unset($set[$k]);
+        if ($set['useconfigpage'])
+            $set['useconfigpage'] = 'disablelink';
         $html_head = "<form method='post'><input type='hidden' name='settings' value='".htmlspecialchars(json_encode($set), ENT_QUOTES)."' /><table class='yearCalendar'>";
         $html_foot = "</form></table>";
 

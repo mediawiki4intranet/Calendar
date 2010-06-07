@@ -49,16 +49,16 @@ function wfCalendarExtension()
 
 function wfCalendarLoadDay($title, $date, $parstr)
 {
-    global $wgRequest, $wgParser, $wgUser;
+    global $wgRequest;
     wfLoadExtensionMessages('wfCalendarExtension');
-    $wgParser->mOptions = ParserOptions::newFromUser($wgUser);
+    CalendarCommon::parse('');
     $calendar = new WikiCalendar();
     $t = Title::newFromText($title);
     $params = json_decode($parstr);
     if ($params)
-      $params = (array)$params;
+        $params = (array)$params;
     else
-      $params = array();
+        $params = array();
     $params['path'] = str_replace("\\", "/", dirname(__FILE__));
     $params['title'] = Title::newFromText($t->prefix($t->getBaseText()));
     $params['name'] = $t->getSubpageText();
@@ -78,9 +78,9 @@ function wfCalendarUnknownAction($action, $article)
 {
     if ($action == 'rss-calendar')
     {
-        global $wgRequest, $wgParser, $wgUser;
+        global $wgRequest;
         wfLoadExtensionMessages('wfCalendarExtension');
-        $wgParser->mOptions = ParserOptions::newFromUser($wgUser);
+        CalendarCommon::parse('');
         $calendar = new WikiCalendar();
         $params = $wgRequest->getValues();
         $t = $article->getTitle();
