@@ -155,7 +155,7 @@ function wfCalendarRefresh()
 
         $cookie_name = preg_replace('/(\.|\s)/',  '_', ($title . " " . $name)); // replace periods and spaces
         $cookie_value = $month . "`" . $day . "`" . $year . "`" . $title . "`" . $name . "`" . $mode . "`";
-        setcookie($cookie_name, $cookie_value, 0, $wgScriptPath);
+        setcookie($cookie_name, $cookie_value, time()+86400*365, $wgScriptPath);
 
         // reload the page..clear any purge commands that may be in it from an ical load...
         $url = $wgTitle->getFullUrl();
