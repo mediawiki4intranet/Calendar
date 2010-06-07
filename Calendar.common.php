@@ -173,7 +173,9 @@ class CalendarCommon
         }
         if (is_null($parser))
             $parser = $wgParser;
+        $oldoptions = $parser->mOptions;
         $parserOutput = $parser->parse(trim($line), $parser->mTitle ? $parser->mTitle : $wgTitle, self::$parserOptions, false, $parser->mFirstCall);
+        $parser->mOptions = $oldoptions;
         return str_replace(array("<p>","</p>","\r","\n"), "", $parserOutput->mText);
     }
 }
