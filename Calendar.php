@@ -234,7 +234,7 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     }
 
     if(isset($params['useeventlist'])) $userMode = 'events';
-    if(isset($params['date'])) $userMode = 'day';
+    if(isset($params['date']) && strtolower($params['date']) != 'off') $userMode = 'day';
     if(isset($params['simplemonth'])) $userMode = 'simplemonth';
 
     if (($ical = $wgRequest->getText('ical')) &&

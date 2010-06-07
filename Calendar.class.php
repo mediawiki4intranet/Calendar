@@ -745,16 +745,14 @@ class WikiCalendar extends CalendarArticles
             $params['disableredirects'] = true;
 
         // no need to pass a parameter here... isset check for the params name, thats it
-        if(isset($params["lockdown"]))
+        if (isset($params["lockdown"]))
         {
             $params['disableaddevent'] = true;
             $params['disablelinks'] = true;
-            $params['locktemplates'] = true;
         }
 
-        if(isset($params["5dayweek"])){
+        if (isset($params["5dayweek"]))
             $params['monday'] = true;
-        }
 
         // joint calendar...pulling data from our calendar and the subscribers...ie: "title/name" format
         if(isset($params["subscribe"]) && $params["subscribe"] != "subscribe")
