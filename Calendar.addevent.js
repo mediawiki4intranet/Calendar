@@ -22,6 +22,13 @@ function wikiaddevent(t,m,s)
 }
 function calendarshowdate(el,title,date)
 {
+  var settings = el;
+  while (settings && settings.nodeName.toLowerCase() != 'form')
+    settings = settings.parentNode;
+  if (settings && settings.settings)
+    settings = settings.settings.value;
+  else
+    settings = '';
   el.parentNode.className = el.parentNode.className + ' ydate_shown';
   el.style.display = '';
   if (el.innerHTML != '')
@@ -32,7 +39,7 @@ function calendarshowdate(el,title,date)
       return;
     el.innerHTML = request.responseText;
   };
-  sajax_do_call('wfCalendarLoadDay', [title, date], f);
+  sajax_do_call('wfCalendarLoadDay', [title, date, settings], f);
 }
 function calendarhidedate(el)
 {

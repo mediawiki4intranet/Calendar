@@ -958,7 +958,7 @@ class WikiCalendar extends CalendarArticles
 
     // Generate the HTML for a given month
     // $day may be out of range; if so, give blank HTML
-    function getHTMLForDay($month, $day, $year, $dateFormat='default', $mode='month', $simpleadd=false){
+    function getHTMLForDay($month, $day, $year, $dateFormat='default', $mode='month'){
         $tag_eventList = $tag_dayCustom = "";
         $tag_dayweekyear = "";
 
@@ -983,32 +983,30 @@ class WikiCalendar extends CalendarArticles
         $weekday = CalendarCommon::translate($wday+1, 'weekday');
 
         $display_day = $day;
-        if($dateFormat == 'long'){
+        if ($dateFormat == 'long')
             $display_day = $weekday . ", " . CalendarCommon::translate($month, 'month_short') . " $day";
-        }
-
-        if($dateFormat == 'none')
+        elseif ($dateFormat == 'none')
             $display_day = "";
 
-        if ( ($thedate['mon'] == $this->actualMonth) && ($thedate['year'] == $this->actualYear) && ($thedate['mday'] == $this->actualDay) ) {
+        if (($thedate['mon'] == $this->actualMonth) &&
+            ($thedate['year'] == $this->actualYear) &&
+            ($thedate['mday'] == $this->actualDay))
             $tag_wday = "calendarToday";
-        }
-        elseif($wday==0 || $wday ==6){
+        elseif ($wday == 0 || $wday == 6)
             $tag_wday = "calendarWeekend";
-        }
-        else {
+        else
             $tag_wday = "calendarWeekday";
-        }
 
         $tag_mode = 'monthMode';
-        if($mode == 'events'){
+        if ($mode == 'events')
+        {
             $tag_mode = 'eventsMode';
             $tag_dayCustom = "eventsDay";
         }
-        if($mode=='week'){
+        elseif ($mode == 'week')
             $tag_mode = 'weekMode';
-        }
-        if($mode == 'day'){
+        elseif ($mode == 'day')
+        {
             $tag_mode = 'dayMode';
             $tag_dayCustom = "singleDay";
         }
@@ -1017,21 +1015,19 @@ class WikiCalendar extends CalendarArticles
         $tag_eventList = $this->getArticleLinks($month, $day, $year, true);
 
         // build Add event bar after building event list
-        $tag_addEvent = $this->buildAddEventLink($month, $day, $year, $simpleadd ? '+' : '');
+        $tag_addEvent = $this->buildAddEventLink($month, $day, $year);
 
         // no events, then return nothing!
         if((strlen($tag_eventList) == 0) && ($mode == 'events')) return "";
 
         $tag_alerts = $this->buildAlertLink($day, $month);
 
-        if($this->setting('dayofyear')){
+        if($this->setting('dayofyear'))
             $tag_dayweekyear = $this->getDayOfTheYear($month,$day,$year);
-        }
-        if($this->setting('weekofyear')){
+        if($this->setting('weekofyear'))
             $tag_dayweekyear .= $this->getWeekOfTheYear($month,$day,$year);
-        }
 
-        //kludge... for some reason, the "\n" is removed in full calendar mode
+        // kludge... for some reason, the "\n" is removed in full calendar mode
         if($mode == "monthMode")
             $tag_eventList = str_replace("\n", " ", $tag_eventList);
 
@@ -1746,49 +1742,30 @@ class WikiCalendar extends CalendarArticles
         $monthname = CalendarCommon::translate($month, 'month_short');
         $monthyear = "<a href='".$this->titleObject->getFullUrl(array('viewSelect' => 'month', 'calendar_info' => $month.'`1`'.$year.'`'.$this->title.'`'.$this->name.'`'))."'>$monthname, $this->year</a>";
 
-        if(!$disableNavButtons){
+        $html = '';
+        if (!$disableNavButtons)
+        {
+            $html .= "<form name='cal_frm' method='post'>";
             $prev = "<input class='btn' name='monthBack' type='submit' value='<<'>";
             $next = "<input class='btn' name='monthForward' type='submit' value='>>'>";
         }
 
         $title = "<table class='yearCalendarMonth_x' width=100% cellpadding=0 cellspacing=0><td>$prev</td><td>" . $monthyear . "</td><td>$next</td></table>";
+        $html .= "<table class='yearCalendarMonth'><tr><td colspan='".($this->setting('5dayweek') ? 5 : 7)."' style='font-size:9px' class='yearTitle'>$title</tr><tr>";
 
-        $header = "<table class='yearCalendarMonth'><tr><td colspan='".($this->setting('5dayweek') ? 5 : 7)."' style='font-size:9px' class='yearTitle'>$title</tr>";
-
-        $ret = "<tr>";
-
-        if($this->setting('monday')){
-            $ret .= "
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(2,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(3,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(4,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(5,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(6,'weekday'),0,1) . "</td>";
-            if(!$this->setting('5dayweek')){
-                $ret .=
-                    "<td class='yearHeading'>" . mb_substr(CalendarCommon::translate(7,'weekday'),0,1) . "</td>
-                    <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(1,'weekday'),0,1) . "</td>";
-            }
-        }
-        else{
-            $ret .= "
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(1,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(2,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(3,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(4,'weekday'),0,1) . "</td>
-                <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(5,'weekday'),0,1) . "</td>";
-            if(!$this->setting('5dayweek')){
-                $ret .=
-                    "<td class='yearHeading'>" . mb_substr(CalendarCommon::translate(6,'weekday'),0,1) . "</td>
-                    <td class='yearHeading'>" . mb_substr(CalendarCommon::translate(7,'weekday'),0,1) . "</td>";
-            }
+        $n = $this->setting('5dayweek') ? 5 : 7;
+        $m = $this->setting('monday') ? 1 : 0;
+        for ($i = 0; $i < $n; $i++)
+            $html .= "<td class='yearHeading'>" . mb_substr(CalendarCommon::translate(1+($i+$m)%7,'weekday'),0,1) . "</td>";
+        $html .= $this->getMonthHTML($month, $year, true);
+        $html .= "</table>";
+        if (!$disableNavButtons)
+        {
+            $html .= $this->tag_HiddenData;
+            $html .= "</form>";
         }
 
-        $ret.= $this->getMonthHTML($month,$year,true);
-
-        $hidden = $this->tag_HiddenData;
-
-        return "<form name='cal_frm' method='post'>" . $header . "$ret</table>$hidden</form>";
+        return $html;
     }
 
     function renderYear()
@@ -1800,11 +1777,15 @@ class WikiCalendar extends CalendarArticles
 
         $styleTitle = "style='text-align:center; font-size:24px; font-weight:bold;'";
 
-        $html_head = "<table class='yearCalendar'><form  method='post'>";
-        $html_foot = "</table></form>";
+        $set = $this->arrSettings;
+        foreach ($set as $k => $v)
+            if (is_object($v))
+                unset($set[$k]);
+        $html_head = "<form method='post'><input type='hidden' name='settings' value='".htmlspecialchars(json_encode($set), ENT_QUOTES)."' /><table class='yearCalendar'>";
+        $html_foot = "</form></table>";
 
         $ret = ""; $cal = "";
-        $nextMon=1;
+        $nextMon = 1;
         $nextYear = $this->year;
 
         $title = "$tag_previousYearButton &nbsp; $this->year &nbsp; $tag_nextYearButton";
@@ -1820,7 +1801,7 @@ class WikiCalendar extends CalendarArticles
             }
         }
 
-        return $html_head . $ret . $this->tag_HiddenData . $html_foot ;
+        return $html_head . $ret . $this->tag_HiddenData . $html_foot;
     }
 
     function renderWeek($fiveDay = false)

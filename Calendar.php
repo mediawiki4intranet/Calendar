@@ -47,13 +47,18 @@ function wfCalendarExtension()
     $wgParser->setHook('calendar', 'wfCalendarDisplay');
 }
 
-function wfCalendarLoadDay($title, $date)
+function wfCalendarLoadDay($title, $date, $parstr)
 {
+    global $wgRequest;
     CalendarCommon::parse('');
     wfLoadExtensionMessages('wfCalendarExtension');
     $calendar = new WikiCalendar();
     $t = Title::newFromText($title);
-    $params = array();
+    $params = json_decode($parstr);
+    if ($params)
+      $params = (array)$params;
+    else
+      $params = array();
     $params['path'] = str_replace("\\", "/", dirname(__FILE__));
     $params['title'] = Title::newFromText($t->prefix($t->getBaseText()));
     $params['name'] = $t->getSubpageText();
