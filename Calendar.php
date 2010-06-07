@@ -24,8 +24,8 @@ if (!$wgCalendarDateFormat)
 # Credits
 $wgExtensionCredits['parserhook'][] = array(
     'name'        => 'Calendar',
-    'author'      => 'Eric Fortin',
-    'url'         => 'http://www.mediawiki.org/wiki/Extension:Calendar_(Kenyu73)',
+    'author'      => 'Vitaliy Filippov, Eric Fortin, Simson Garfinkel, Michael Walters',
+    'url'         => 'http://yourcmc.ru/wiki/Calendar_(MediaWiki)',
     'description' => 'MediaWiki Calendar',
     'version'     => $gCalendarVersion,
 );

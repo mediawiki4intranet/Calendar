@@ -1903,7 +1903,7 @@ class WikiCalendar extends CalendarArticles
     function buildAboutLink()
     {
         $about_translated = CalendarCommon::translate('about');
-        return "<a title='$about_translated' href='http://www.mediawiki.org/wiki/Extension:Calendar_(Kenyu73)' target='_blank'>about</a>...";
+        return "<a title='$about_translated' href='http://yourcmc.ru/wiki/Calendar_(MediaWiki)' target='_blank'>about</a>...";
     }
 
     //hopefully a catchall of most types of returns values
