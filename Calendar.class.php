@@ -799,7 +799,7 @@ class WikiCalendar extends CalendarArticles
                 $body = $a->eventname;
             $a->page->setFragment('#'.$a->anchor);
             $item = array(
-                'title'   => $a->eventname,
+                'title'   => sprintf('%04d-%02d-%02d ', $a->year, $a->month, $a->day) . $a->eventname,
                 'text'    => $body,
                 'guid'    => $a->page->getFullUrl(),
                 'author'  => $author[0],
