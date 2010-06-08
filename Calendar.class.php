@@ -792,10 +792,6 @@ class WikiCalendar extends CalendarArticles
         for ($i = count($this->arrEvents)-1; $i >= 0; $i--)
         {
             $a = $this->arrEvents[$i];
-            if (preg_match('/(\d{2}):(\d{2})(:(\d{2}))?/', $a->eventname, $m))
-                $time = mktime($m[1], $m[2], intval($m[4]), $a->month, $a->day, $a->year);
-            else
-                $time = time();
             $article = new Article($a->page);
             $author = $article->getLastNAuthors(1);
             $body = trim($a->body);
@@ -807,7 +803,7 @@ class WikiCalendar extends CalendarArticles
                 'text'    => $body,
                 'guid'    => $a->page->getFullUrl(),
                 'author'  => $author[0],
-                'created' => $time,
+                'created' => $article->getTimestamp(),
             );
             if (!$feed['date'] || $item['created'] >= $feed['date'])
                 $feed['date'] = $item['created'];
