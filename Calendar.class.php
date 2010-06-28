@@ -1572,7 +1572,7 @@ class WikiCalendar extends CalendarArticles
         wfProfileOut(__METHOD__);
     }
 
-    // build the months articles into memory
+    // load the months articles into memory
     function initalizeMonth($month = NULL, $year = NULL)
     {
         wfProfileIn(__METHOD__);
@@ -1589,14 +1589,44 @@ class WikiCalendar extends CalendarArticles
             $max[2]++;
         }
         $max = CalendarCommon::datemath(-1, $max[0], $max[1], $max[2]);
+        $this->initalizeRange($min, $max);
+        wfProfileOut(__METHOD__);
+    }
+
+    // load the articles from given range into memory
+    function initalizeRange($min, $max)
+    {
+        wfProfileIn(__METHOD__);
+
         $min = array(sprintf("%04d", $min[2]), sprintf("%02d", $min[0]), sprintf("%02d", $min[1]));
         $max = array(sprintf("%04d", $max[2]), sprintf("%02d", $max[0]), sprintf("%02d", $max[1]));
         $range = array();
         if ($this->setting('usetemplates'))
         {
-            $range[] = array('XXXX-XX-'.$min[2], 'XXXX-XX-'.$max[2]);
+            // ranges for repeating events
             $range[] = array('XXXX-'.$min[1].'-'.$min[2], 'XXXX-'.$max[1].'-'.$max[2]);
-            $range[] = array($min[0].'-XX-'.$min[2], $max[0].'-XX-'.$max[2]);
+            if ($min[0] == $max[0] && $min[1] == $max[1])
+            {
+                // simplest case: range of dates within 1 month
+                $range[] = array('XXXX-XX-'.$min[2], 'XXXX-XX-'.$max[2]);
+                $range[] = array($min[0].'-XX-'.$min[2], $max[0].'-XX-'.$max[2]);
+            }
+            elseif (intval($min[1]) == intval($max[1])-1 ||
+                intval($min[0]) == intval($max[0])-1 && $min[1] == '12' && $max[1] == '01')
+            {
+                // we need to add 2 ranges: (min, 31) and (01, max) instead of simply (min, max)
+                // when range crosses 1 month boundary
+                // for example: 2008-12-20..2009-01-10 => 2008-XX-20..2008-XX-31 + 2009-XX-01..2009-XX-10
+                $range[] = array('XXXX-XX-'.$min[2], 'XXXX-XX-31');
+                $range[] = array('XXXX-XX-01', 'XXXX-XX-'.$max[2]);
+                $range[] = array($min[0].'-XX-'.$min[2], $min[0].'-XX-31');
+                $range[] = array($max[0].'-XX-01', $max[0].'-XX-'.$max[2]);
+            }
+            else
+            {
+                $range[] = array('XXXX-XX-01', 'XXXX-XX-31');
+                $range[] = array($min[0].'-XX-01', $max[0].'-XX-31');
+            }
         }
         $range[] = array($min[0].'-'.$min[1].'-'.$min[2], $max[0].'-'.$max[1].'-'.$max[2]);
 
@@ -1804,8 +1834,6 @@ class WikiCalendar extends CalendarArticles
     {
         wfProfileIn(__METHOD__);
 
-        $this->initalizeMonth();
-
         // defaults
         $sunday = $saturday  = $ret = $week = "";
         $colspan = 2;
@@ -1822,6 +1850,9 @@ class WikiCalendar extends CalendarArticles
             $weekday--;
         list($month, $day, $year) = CalendarCommon::datemath(-($weekday), $this->month, $this->day, $this->year);
 
+        // this range may cross month or even year boundary!
+        $this->initalizeRange(array($month, $day, $year), CalendarCommon::datemath(7, $month, $day, $year));
+
         $title = CalendarCommon::translate($month, 'month') . ", " . $year;
 
         $btnToday = CalendarCommon::translate('today');
@@ -1832,10 +1863,10 @@ class WikiCalendar extends CalendarArticles
         if(!$fiveDay){
             $sunday = "<td class='calendarHeading'>" . CalendarCommon::translate(1, 'weekday'). "</td>";
             $saturday = "<td class='calendarHeading'>" . CalendarCommon::translate(7, 'weekday'). "</td>";
-            $colspan = 4; //adjust for mode buttons
+            $colspan = 4; // adjust for mode buttons
         }
 
-        //hide mode buttons if selected via parameter tag
+        // hide mode buttons if selected via parameter tag
         $ret .= "<tr>&nbsp;<td></td><td $styleTitle colspan=2>&nbsp;$title</td>" . "<td>&nbsp;<i>". $this->buildConfigLink(true) . "</i></td>"
             . "<td align=right colspan=$colspan>$tag_todayButton &nbsp;&nbsp; $this->tag_views</td><td>&nbsp;</td></tr>";
 
