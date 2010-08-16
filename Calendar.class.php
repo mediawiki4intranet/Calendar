@@ -1204,7 +1204,7 @@ class WikiCalendar extends CalendarArticles
             $shift = intval($setting);
         elseif ($setting)
         {
-            $useDash = ("-",$setting);
+            $useDash = explode("-",$setting);
             $useSlash = explode("/",$setting);
             $useDot = explode(".",$setting);
             /* YYYY-MM-DD */
