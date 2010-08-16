@@ -102,7 +102,7 @@ function wfCalendarRefresh()
     if (isset($v["calendar_info"]))
     {
         $today = getdate(); // today
-        $temp = split("`", $v["calendar_info"]); // calling calendar info (name,title, etc..)
+        $temp = explode("`", $v["calendar_info"]); // calling calendar info (name,title, etc..)
 
         // set the initial values
         $month = $temp[0];
@@ -217,7 +217,7 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     if(isset($_COOKIE[$cookie_name])){
         wfDebug('Calendar: Cookie loaded: '.$_COOKIE[$cookie_name]."\n");
 
-        $arrSession = split("`", $_COOKIE[$cookie_name]);
+        $arrSession = explode("`", $_COOKIE[$cookie_name]);
         $calendar->setMonth($arrSession[0]);
         $calendar->setDay($arrSession[1]);
         $calendar->setYear($arrSession[2]);

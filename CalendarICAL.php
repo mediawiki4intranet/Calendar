@@ -38,7 +38,7 @@ class CalendarICAL
     //verify if this is truely a vcal file
     private function validate(){
 
-        $lines = split("\n", $this->data);
+        $lines = explode("\n", $this->data);
         if(stripos($lines[0],"BEGIN:VCALENDAR") !== false)
             return true;
 
@@ -50,14 +50,14 @@ class CalendarICAL
         $arrSection = array();
         $arrEvents = array();
 
-        $sections = split("BEGIN:VEVENT", $this->data);
+        $sections = explode("BEGIN:VEVENT", $this->data);
 
         for($sec=0; $sec<count($sections); $sec++){
-            $lines = split("\n", $sections[$sec]);
+            $lines = explode("\n", $sections[$sec]);
 
             for($i=0; $i< count($lines); $i++){
                 $line = $lines[$i];
-                $event = split(":",$line);
+                $event = explode(":",$line);
 
                 if(substr($line,0,7) == 'DTSTART'){
                     $arrSection['DTSTART'] = $this->convertToPHPDate($event[1]);
@@ -93,7 +93,7 @@ class CalendarICAL
     public function convertToPHPDate($date){
         $date = trim($date);
 
-        $date_time = split("T", $date);
+        $date_time = explode("T", $date);
         $date = $date_time[0];
 
         $arr['year'] = substr($date,0,4);

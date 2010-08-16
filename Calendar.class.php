@@ -122,7 +122,7 @@ class CalendarArticles
         if ($body == "")
             return "";
 
-        $lines = split("\n", $body);
+        $lines = explode("\n", $body);
 
         // dont use section events... only line 1 of the page
         $head = array();
@@ -171,7 +171,7 @@ class CalendarArticles
         }
 
         // check for repeating events
-        $arrEvent = split("#", $event);
+        $arrEvent = explode("#", $event);
         if (isset($arrEvent[1]) && ($arrEvent[0] != 0) && $this->setting('enablerepeatevents'))
         {
             for($i = 0; $i < $arrEvent[0]; $i++)
@@ -254,11 +254,11 @@ class CalendarArticles
         if((stripos($event,"::") === false) || $this->setting('disabletimetrack'))
             return $event;
 
-        $arrEvent = split("::", $event);
+        $arrEvent = explode("::", $event);
 
-        $arrType = split(":",$arrEvent[1]);
+        $arrType = explode(":",$arrEvent[1]);
         if(count($arrType) == 1)
-            $arrType = split("-",$arrEvent[1]);
+            $arrType = explode("-",$arrEvent[1]);
 
         if(count($arrType) != 2) return $event;
 
@@ -287,7 +287,7 @@ class CalendarArticles
 
         if($cntValue == 0) return "";
 
-        $cntHead = split(",", $this->setting('timetrackhead',false));
+        $cntHead = explode(",", $this->setting('timetrackhead',false));
         $linktitle = "Time summaries of time specific enties. Prefix events with :: to track time values.";
 
         $html_head = "<hr><table title='$linktitle' width=15% border=1 cellpadding=0 cellspacing=0><th>$cntHead[0]</th><th>$cntHead[1]</th>";
@@ -333,7 +333,7 @@ class CalendarArticles
         if ($text == "" && ($range = $this->setting('addeventsbyhour')))
         {
             // display separate links for adding event to each hour
-            list($min, $max) = split('..', $range);
+            list($min, $max) = explode('..', $range);
             // addeventsbyhour = 8..21 by default
             if (!$max || $min < 0 || $max > 23)
                 list($min, $max) = array(8, 21);
@@ -425,7 +425,7 @@ class CalendarArticles
 
         if ($article->exists()){
             $displayText = $article->fetchContent(0,false,false);
-            $this->arrStyle = split("\n", $displayText);
+            $this->arrStyle = explode("\n", $displayText);
         }
     }
 
@@ -440,11 +440,11 @@ class CalendarArticles
             $body  = $article->fetchContent(0,false,false);
             $body = str_replace("\"", "", $body);
 
-            $arr = split("\n", $body);
+            $arr = explode("\n", $body);
             $cnt = count($arr);
 
             for($i=0; $i<$cnt; $i++){
-                $arrParams = split("=", $arr[$i]);
+                $arrParams = explode("=", $arr[$i]);
                 $key = trim($arrParams[0]);
 
                 if($key != 'useconfigpage'){        // we dont want users to lock themselves out of the config page....
@@ -466,7 +466,7 @@ class CalendarArticles
         $defaultStyle = $this->setting('style', false);
 
         for($i=0; $i < count($this->arrStyle); $i++){
-            $arr = split("::", $this->arrStyle[$i]);
+            $arr = explode("::", $this->arrStyle[$i]);
             $cnt = count($arr);
 
             if(stripos($text, $arr[0]) !== false) {
@@ -634,15 +634,15 @@ class CalendarArticles
 
     // converts an RRULE line into an easy to use 2d-array
     function convertRRULEs($rrules){
-        $arr_rrules = split("RRULE:", $rrules);
+        $arr_rrules = explode("RRULE:", $rrules);
 
         $events = array();
         array_shift($arr_rrules); //1st array[0] is garbage because RRULE: in position 0(1st)
 
         foreach($arr_rrules as $rule){
-            $arr_properties = split(";", $rule);
+            $arr_properties = explode(";", $rule);
             foreach($arr_properties as $property){
-                $arr_rule = split("=", $property);
+                $arr_rule = explode("=", $property);
                 $rules[$arr_rule[0]] = $arr_rule[1]; //key and value
             }
 
@@ -756,7 +756,7 @@ class WikiCalendar extends CalendarArticles
 
         // joint calendar...pulling data from our calendar and the subscribers...ie: "title/name" format
         if(isset($params["subscribe"]) && $params["subscribe"] != "subscribe")
-            $this->subscribedPages = split(",", $params["subscribe"]);
+            $this->subscribedPages = explode(",", $params["subscribe"]);
 
         // subscriber only calendar...basically, taking the subscribers identity fully...ie: "title/name" format
         if(isset($params["fullsubscribe"]) && $params["fullsubscribe"] != "fullsubscribe")
@@ -1043,7 +1043,7 @@ class WikiCalendar extends CalendarArticles
         $alerts = $this->arrAlerts;
         $alertList = "";
         for ($i=0; $i < count($alerts); $i++){
-            $alert = split("-", $alerts[$i]);
+            $alert = explode("-", $alerts[$i]);
             if(($alert[0] == $day) && ($alert[1] == $month))
                 $alertList .= $alert[2];
         }
@@ -1204,9 +1204,9 @@ class WikiCalendar extends CalendarArticles
             $shift = intval($setting);
         elseif ($setting)
         {
-            $useDash = split("-",$setting);
-            $useSlash = split("/",$setting);
-            $useDot = split(".",$setting);
+            $useDash = ("-",$setting);
+            $useSlash = explode("/",$setting);
+            $useDot = explode(".",$setting);
             /* YYYY-MM-DD */
             if (count($d = $useDash) > 1)
                 $i = array(0, 1, 2);
@@ -1542,9 +1542,9 @@ class WikiCalendar extends CalendarArticles
     // the returned results include the text between the search strings,
     // else an empty string will be returned if not found.
     function searchHTML($html, $beginString, $endString) {
-        $temp = split($beginString, $html);
+        $temp = explode($beginString, $html);
         if (count($temp) > 1) {
-            $temp = split($endString, $temp[1]);
+            $temp = explode($endString, $temp[1]);
             return $temp[0];
         }
         return "";
@@ -1734,16 +1734,16 @@ class WikiCalendar extends CalendarArticles
 
     function buildTagEvents($paramstring){
 
-        $events = split( "\n", trim($paramstring) );
+        $events = explode( "\n", trim($paramstring) );
 
         foreach($events as $event) {
-            $arr = split(':', $event);
+            $arr = explode(':', $event);
             $date = array_shift($arr);
             $event = array_shift($arr);
 
             $body = implode(':',$arr);
 
-            $arrDate = split('-',$date);
+            $arrDate = explode('-',$date);
 
             // we must have a valid date to continue
             if(count($arrDate) < 3)
