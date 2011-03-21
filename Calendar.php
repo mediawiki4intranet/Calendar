@@ -94,6 +94,13 @@ function wfCalendarUnknownAction($action, $article)
     return true;
 }
 
+function wfCalendarIsValidMode($mode)
+{
+    $isValidMode = array('year' => 1, 'month' => 1, 'simplemonth' => 1, 'week' => 1, 'day' => 1, 'events' => 1);
+    return $isValidMode[$mode];
+}
+
+// FIXME for the future: remove this handler and directly output URLs with correct parameter
 function wfCalendarRefresh()
 {
     global $wgRequest, $wgTitle, $wgScriptPath;
@@ -102,7 +109,7 @@ function wfCalendarRefresh()
     if (isset($v["calendar_info"]))
     {
         $today = getdate(); // today
-        $temp = explode("`", $v["calendar_info"]); // calling calendar info (name,title, etc..)
+        $temp = explode("`", $v["calendar_info"]); // calling calendar info (name, title, etc..)
 
         // set the initial values
         $month = $temp[0];
@@ -113,52 +120,55 @@ function wfCalendarRefresh()
 
         // the yearSelect and monthSelect must be on top... the onChange triggers
         // whenever the other buttons are clicked
-        if(isset($v["yearSelect"])) $year = $v["yearSelect"];
-        if(isset($v["monthSelect"])) $month = $v["monthSelect"];
+        if ($v["yearSelect"]) $year = $v["yearSelect"];
+        if ($v["monthSelect"]) $month = $v["monthSelect"];
 
-        if(isset($v["yearBack"])) --$year;
-        if(isset($v["yearForward"])) ++$year;
+        if (isset($v["yearBack"])) --$year;
+        if (isset($v["yearForward"])) ++$year;
 
-        if(isset($v["today"])){
+        if (isset($v["today"]))
+        {
             $day = $today['mday'];
             $month = $today['mon'];
             $year = $today['year'];
         }
 
-        if(isset($v["monthBack"])){
+        if (isset($v["monthBack"]))
+        {
             $year = ($month == 1 ? --$year : $year);
             $month = ($month == 1 ? 12 : --$month);
         }
 
-        if(isset($v["monthForward"])){
+        if (isset($v["monthForward"]))
+        {
             $year = ($month == 12 ? ++$year : $year);
             $month = ($month == 12 ? 1 : ++$month);
         }
 
-        if(isset($v["weekBack"])){
-            $arr = getdate( mktime(12, 0, 0,$month, $day-7, $year) );
+        if(isset($v["weekBack"]))
+        {
+            $arr = getdate(mktime(12, 0, 0, $month, $day-7, $year));
             $month = $arr['mon'];
             $day = $arr['mday'];
             $year = $arr['year'];
         }
 
-        if(isset($v["weekForward"])) {
-            $arr = getdate( mktime(12, 0, 0,$month, $day+7, $year) );
+        if(isset($v["weekForward"]))
+        {
+            $arr = getdate(mktime(12, 0, 0, $month, $day+7, $year));
             $month = $arr['mon'];
             $day = $arr['mday'];
             $year = $arr['year'];
         }
 
-        if(isset($v["viewSelect"])){
+        if (wfCalendarIsValidMode($v["viewSelect"]))
             $mode = $v["viewSelect"];
-        }
 
-        $cookie_name = preg_replace('/(\.|\s)/',  '_', ($title . " " . $name)); // replace periods and spaces
-        $cookie_value = $month . "`" . $day . "`" . $year . "`" . $title . "`" . $name . "`" . $mode . "`";
-        setcookie($cookie_name, $cookie_value, time()+86400*365, $wgScriptPath);
+        $p = "cal".crc32("$title $name");
+        $v = sprintf("%04d-%02d-%02d-%s", $year, $month, $day, $mode);
 
-        // reload the page..clear any purge commands that may be in it from an ical load...
-        $url = $wgTitle->getFullUrl();
+        // reload the page... clear any purge commands that may be in it from an ical load...
+        $url = $wgTitle->getFullUrl(array($p => $v));
         header("Location: " . $url);
         exit;
     }
@@ -194,40 +204,29 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
 
     // if the calendar isn't in a namespace(s) specificed in $wgCalendarForceNamespace, return a warning
     // this can be a string or an array
-    if(isset($wgCalendarForceNamespace)){
-        if(is_array($wgCalendarForceNamespace)){
-            if(!in_array($calendar->namespace,$wgCalendarForceNamespace)  && !isset($params["fullsubscribe"]) ) {
-
-                $namespaces = "";
-                foreach($wgCalendarForceNamespace as $namespace){
-                    $namespaces .= $namespace . ", ";
-                }
-
-                return CalendarCommon::translate('invalid_namespace') . '<b>'.$namespaces.'</b>';
-            }
-        }
-        else if ( $wgCalendarForceNamespace != $calendar->namespace  && !isset($params["fullsubscribe"]) ){
-            return CalendarCommon::translate('invalid_namespace') . '<b>'.$wgCalendarForceNamespace.'</b>';
-        }
+    if (isset($wgCalendarForceNamespace))
+    {
+        $ns = $wgCalendarForceNamespace;
+        if (!is_array($ns))
+            $ns = array($ns);
+        if (!in_array($calendar->namespace, $ns) && !isset($params["fullsubscribe"]))
+            return CalendarCommon::translate('invalid_namespace') . '<b>'.implode(', ', $ns).'</b>';
     }
 
     // finished special conditions
 
-    $cookie_name = preg_replace('/(\.|\s)/',  '_', ($title . " " . $name)); //replace periods and spaces
-    if(isset($_COOKIE[$cookie_name])){
-        wfDebug('Calendar: Cookie loaded: '.$_COOKIE[$cookie_name]."\n");
-
-        $arrSession = explode("`", $_COOKIE[$cookie_name]);
-        $calendar->setMonth($arrSession[0]);
-        $calendar->setDay($arrSession[1]);
-        $calendar->setYear($arrSession[2]);
-        $calendar->setTitle($arrSession[3]);
-        $calendar->setName($arrSession[4]);
-
-        if(strlen($arrSession[5]) > 0)
-            $userMode = $arrSession[5];
+    $p = 'cal'.crc32("$title $name");
+    if ($v = $wgRequest->getVal($p))
+    {
+        list($year, $month, $day, $mode) = explode('-', $v, 4);
+        $calendar->setYear(0+$year);
+        $calendar->setMonth(0+$month);
+        $calendar->setDay(0+$day);
+        if (wfCalendarIsValidMode($mode))
+            $userMode = $mode;
     }
-    else{
+    else
+    {
         // defaults from the <calendar /> parameters; must restart browser to enable
         if(isset($params['week'])) $userMode = 'week';
         if(isset($params['year'])) $userMode = 'year';

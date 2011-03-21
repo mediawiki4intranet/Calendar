@@ -843,23 +843,18 @@ class WikiCalendar extends CalendarArticles
         if($this->paramstring != '')
             $this->buildTagEvents($this->paramstring);
 
-        // what mode we going into
-        if($userMode == 'year')
+        // mode we going into
+        if ($userMode == 'year')
             $ret = $this->renderYear();
-
-        if($userMode == 'month')
+        elseif ($userMode == 'month')
             $ret = $this->renderMonth();
-
-        if($userMode == 'simplemonth')
+        elseif ($userMode == 'simplemonth')
             $ret = $this->renderSimpleMonth();
-
-        if($userMode == 'week')
+        elseif ($userMode == 'week')
             $ret = $this->renderWeek($this->setting('5dayweek'));
-
-        if($userMode == 'day')
+        elseif ($userMode == 'day')
             $ret = $this->renderDate();
-
-        if($userMode == 'events')
+        elseif ($userMode == 'events')
             $ret = $this->renderEventList();
 
         // tag on extra info at the end of whatever is displayed
@@ -1091,9 +1086,11 @@ class WikiCalendar extends CalendarArticles
         $ical_value = CalendarCommon::translate('ical_btn');
         $ical_title = CalendarCommon::translate('ical_btn_tip');
 
+        // FIXME remove cookie usage?
         $note = "";
         $cookieName = str_replace(' ', '_', ($this->calendarPageName . "_ical_count"));
-        if(isset($_COOKIE[$cookieName])){
+        if(isset($_COOKIE[$cookieName]))
+        {
             $cnt = $_COOKIE[$cookieName];
             $note = "<font color=red>Completed the import of <b>$cnt</b> record(s).</font>";
             setcookie($cookieName, "", time()-3600);
