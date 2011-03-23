@@ -375,6 +375,7 @@ class CalendarArticles
         {
             global $wgScriptPath;
             $wgOut->addScriptFile($wgScriptPath.'/extensions/Calendar/Calendar.addevent.js');
+            $wgOut->addScript('<script language="JavaScript">var msg_calendar_event_created = "'.addslashes(wfMsg('calendar-event-created')).'";</script>');
         }
     }
 
@@ -1153,7 +1154,6 @@ class WikiCalendar extends CalendarArticles
                 list($this->month, $this->day, $this->year) = CalendarCommon::datemath(1, $this->month, $this->day, $this->year);
             }
 
-            $ret = "<i> " . $this->buildConfigLink(true) . "</i>" . $events;
             $ret = "<table width=100%>" . $ret . "</table>";
         }
         wfProfileOut(__METHOD__);
@@ -1232,7 +1232,7 @@ class WikiCalendar extends CalendarArticles
         wfProfileIn(__METHOD__);
         $this->initalizeHTML();
         $this->initalizeDay();
-        $ret = $this->buildConfigLink(true) . $this->getHTMLForDay($this->month, $this->day, $this->year, 'long', 'day');
+        $ret = $this->getHTMLForDay($this->month, $this->day, $this->year, 'long', 'day');
         $ret = "<table>$ret</table>";
         wfProfileOut(__METHOD__);
         return $ret;

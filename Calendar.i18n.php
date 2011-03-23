@@ -30,6 +30,7 @@ $messages['en'] = array(
 	'calendar-rss-title' => "$1 — new events",
 	'calendar-rss-info' => "New events for $1.",
 	'calendar-rss-link' => "RSS feed",
+	'calendar-event-created' => "Event created by",
 );
 
 // French
@@ -202,5 +203,5 @@ $messages['ru'] = array(
 	'calendar-rss-title' => "$1 — новые события",
 	'calendar-rss-info' => "Лента новых событий в календаре $1.",
 	'calendar-rss-link' => "RSS-лента",
+	'calendar-event-created' => "Занято",
 );
-
