@@ -18,7 +18,7 @@ if (!defined('MEDIAWIKI')) {
 
 $gCalendarVersion = "v3.8.4 (8/18/2009)";
 
-if (!$wgCalendarDateFormat)
+if (!isset($wgCalendarDateFormat))
     $wgCalendarDateFormat = 'D.M.YYYY';
 
 # Credits
