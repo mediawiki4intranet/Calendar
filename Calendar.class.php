@@ -1672,12 +1672,11 @@ class WikiCalendar extends CalendarArticles
         $this->i++;
         $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min)->getDBkey();
         $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max)->getDBkey();
-        $l = mb_strlen($mintitle);
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title', array(
             'page_namespace' => $parent->getNamespace(),
-            'SUBSTR(page_title,1,'.$l.')>='.$dbr->addQuotes($mintitle),
-            'SUBSTR(page_title,1,'.$l.')<='.$dbr->addQuotes($maxtitle),
+            'page_title>='.$dbr->addQuotes($mintitle),
+            'page_title<='.$dbr->addQuotes($maxtitle),
         ), __METHOD__);
         $titles = array();
         while ($row = $dbr->fetchRow($result))
