@@ -233,9 +233,9 @@ class CalendarArticles
         {
             $min = $m[1];
             $max = $m[3];
-            if (!$m[2])
+            if (empty($m[2]))
                 $min .= ':00';
-            if (!$m[4])
+            if (empty($m[4]))
                 $max .= ':00';
             if (strcmp($min, $max) > 0)
             {
@@ -381,7 +381,7 @@ class CalendarArticles
 
     function indexHourUsed($date, $h)
     {
-        if (!$this->index[$date])
+        if (empty($this->index[$date]))
             return false;
         foreach ($this->index[$date] as $i)
             if (intval(substr($i[0], 0, 2)) <= $h &&
@@ -669,6 +669,7 @@ class WikiCalendar extends CalendarArticles
     // [begin] set calendar parameter defaults
     var $calendarMode = "normal";
     var $title = "";
+    var $index = array();
 
     var $disableConfigLink = true;
 
@@ -676,6 +677,7 @@ class WikiCalendar extends CalendarArticles
     var $subscribedPages = array();
 
     var $tag_views = "";
+    var $prepend_html = '';
 
     var $invalidateCache = false;
     var $isFullSubscribe = false;
@@ -861,7 +863,7 @@ class WikiCalendar extends CalendarArticles
         // tag on extra info at the end of whatever is displayed
         $ret .= $this->buildTrackTimeSummary();
 
-        if ($this->prepend_html)
+        if ($this->prepend_html !== '')
             $ret = $this->prepend_html . $ret;
 
         $this->buildRssLink();
@@ -874,7 +876,7 @@ class WikiCalendar extends CalendarArticles
         wfProfileIn(__METHOD__);
         global $wgOut,$wgScriptPath, $wgVersion;
 
-        if ($this->inithtml_ok)
+        if (!empty($this->inithtml_ok))
             return;
         $this->inithtml_ok = true;
 
@@ -1154,7 +1156,7 @@ class WikiCalendar extends CalendarArticles
                 list($this->month, $this->day, $this->year) = CalendarCommon::datemath(1, $this->month, $this->day, $this->year);
             }
 
-            $ret = "<table width=100%>" . $ret . "</table>";
+            $ret = "<table width=100%>" . $events . "</table>";
         }
         wfProfileOut(__METHOD__);
         return $ret;
@@ -1498,7 +1500,7 @@ class WikiCalendar extends CalendarArticles
                             $dd = sprintf("%04d-%02d-%02d", $year, $month, $theDay);
                             if (date('Y-m-d') == $dd)
                                 $class[] = 'today';
-                            if (!count($this->index['articles'][$dd]))
+                            if (empty($this->index['articles'][$dd]))
                                 $class[] = 'empty';
                             else
                             {
@@ -1672,6 +1674,7 @@ class WikiCalendar extends CalendarArticles
         $this->i++;
         $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min)->getDBkey();
         $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max)->getDBkey();
+        $l = mb_strlen($mintitle);
         $dbr = wfGetDB(DB_SLAVE);
         $result = $dbr->select('page', 'page_namespace, page_title', array(
             'page_namespace' => $parent->getNamespace(),
@@ -1801,7 +1804,7 @@ class WikiCalendar extends CalendarArticles
         foreach ($set as $k => $v)
             if (is_object($v))
                 unset($set[$k]);
-        if ($set['useconfigpage'])
+        if (!empty($set['useconfigpage']))
             $set['useconfigpage'] = 'disablelink';
         $html_head = "<form method='post'><input type='hidden' name='settings' value='".htmlspecialchars(json_encode($set), ENT_QUOTES)."' /><table class='yearCalendar'>";
         $html_foot = "</form></table>";
@@ -1912,7 +1915,7 @@ class WikiCalendar extends CalendarArticles
         global $wgOut;
         $title = Title::newFromText($this->calendarPageName);
         $link = $title->getFullUrl(array('action' => 'rss-calendar'));
-        if (!$wgOut->_calendar_links[$link])
+        if (empty($wgOut->_calendar_links[$link]))
         {
             $wgOut->addLink(array(
                 'rel' => 'alternate',
