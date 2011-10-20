@@ -1288,7 +1288,7 @@ class WikiCalendar extends CalendarArticles
     function renderMonth()
     {
         wfProfileIn(__METHOD__);
-        global $gCalendarVersion;
+        global $wgCalendarVersion;
 
         $this->initalizeMonth();
 
@@ -1439,7 +1439,7 @@ class WikiCalendar extends CalendarArticles
         $tempString = str_replace("[[TodayData]]", $this->tag_HiddenData, $tempString);
         $tempString = str_replace("[[TemplateButton]]", $tag_templateButton, $tempString);
         $tempString = str_replace("[[EventStyleBtn]]", $tag_eventStyleButton, $tempString);
-        $tempString = str_replace("[[Version]]", $gCalendarVersion, $tempString);
+        $tempString = str_replace("[[Version]]", $wgCalendarVersion, $tempString);
         $tempString = str_replace("[[ConfigurationButton]]", $tag_configButton, $tempString);
         $tempString = str_replace("[[TimeTrackValues]]", $tag_timeTrackValues, $tempString);
         $tempString = str_replace("[[Load_iCal]]", $tag_loadiCalButton, $tempString);

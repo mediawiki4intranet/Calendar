@@ -27,7 +27,7 @@ $wgExtensionCredits['parserhook'][] = array(
     'author'      => 'Vitaliy Filippov, Eric Fortin, Simson Garfinkel, Michael Walters',
     'url'         => 'http://yourcmc.ru/wiki/Calendar_(MediaWiki)',
     'description' => 'MediaWiki Calendar',
-    'version'     => $gCalendarVersion,
+    'version'     => $wgCalendarVersion,
 );
 
 $path = dirname(__FILE__);
