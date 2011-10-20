@@ -17,7 +17,7 @@ class CalendarArticle
     var $anchor = "";
     var $is_template = false;
 
-    function CalendarArticle($month, $day, $year){
+    function CalendarArticle($month, $day, $year) {
         $this->month = $month;
         $this->day = $day;
         $this->year = $year;
@@ -25,7 +25,7 @@ class CalendarArticle
 }
 
 /**
- * Class: CalendarArticles
+ * Class:   CalendarArticles
  * Purpose: Contains most of the functions to retrieve article
  *          information. It also is the primary container for
  *          the main array of class::CalendarArticle articles
@@ -1555,16 +1555,16 @@ class WikiCalendar extends CalendarArticles
         wfProfileIn(__METHOD__);
 
         $range = array();
-        $d = sprintf("%02d", $this->day);
-        $m = sprintf("%02d", $this->month);
-        $y = sprintf("%04d", $this->year);
+        $nextday = CalendarCommon::datemath(1, $this->month, $this->day, $this->year);
+        list($y, $m, $d) = explode("-", sprintf("%04d-%02d-%02d", $this->year, $this->month, $this->day));
+        list($ny, $nm, $nd) = explode("-", sprintf("%04d-%02d-%02d", $nextday[2], $nextday[0], $nextday[1]));
         if ($this->setting('usetemplates'))
         {
-            $range[] = array("XXXX-XX-$d", "XXXX-XX-$d");
-            $range[] = array("XXXX-$m-$d", "XXXX-$m-$d");
-            $range[] = array("$y-XX-$d", "$y-XX-$d");
+            $range[] = array("XXXX-XX-$d",              $nd < $d ? '' : "XXXX-XX-$nd");
+            $range[] = array("XXXX-$m-$d", $m == $nm && $nd < $d ? '' : "XXXX-$nm-$nd");
+            $range[] = array("$y-XX-$d",   $y == $ny && $nd < $d ? '' : "$ny-XX-$nd");
         }
-        $range[] = array("$y-$m-$d", "$y-$m-$d");
+        $range[] = array("$y-$m-$d", "$ny-$nm-$nd");
 
         $this->buildRanges($range);
 
@@ -1587,47 +1587,46 @@ class WikiCalendar extends CalendarArticles
             $max[0] = 1;
             $max[2]++;
         }
-        $max = CalendarCommon::datemath(-1, $max[0], $max[1], $max[2]);
         $this->initalizeRange($min, $max);
         wfProfileOut(__METHOD__);
     }
 
     // load the articles from given range into memory
+    // $min, $max are array(m, d, y)
     function initalizeRange($min, $max)
     {
         wfProfileIn(__METHOD__);
 
-        $min = array(sprintf("%04d", $min[2]), sprintf("%02d", $min[0]), sprintf("%02d", $min[1]));
-        $max = array(sprintf("%04d", $max[2]), sprintf("%02d", $max[0]), sprintf("%02d", $max[1]));
+        list($sy, $sm, $sd) = explode("-", sprintf("%04d-%02d-%02d", $min[2], $min[0], $min[1]));
+        list($ey, $em, $ed) = explode("-", sprintf("%04d-%02d-%02d", $max[2], $max[0], $max[1]));
         $range = array();
         if ($this->setting('usetemplates'))
         {
             // ranges for repeating events
-            $range[] = array('XXXX-'.$min[1].'-'.$min[2], 'XXXX-'.$max[1].'-'.$max[2]);
-            if ($min[0] == $max[0] && $min[1] == $max[1])
+            $range[] = array("XXXX-$sm-$sd", "XXXX-$em-$ed");
+            if ($ey == $sy && $em == $sm)
             {
                 // simplest case: range of dates within 1 month
-                $range[] = array('XXXX-XX-'.$min[2], 'XXXX-XX-'.$max[2]);
-                $range[] = array($min[0].'-XX-'.$min[2], $max[0].'-XX-'.$max[2]);
+                $range[] = array("XXXX-XX-$sd", "XXXX-XX-$ed");
+                $range[] = array("$sy-XX-$sd", "$ey-XX-$ed");
             }
-            elseif (intval($min[1]) == intval($max[1])-1 ||
-                intval($min[0]) == intval($max[0])-1 && $min[1] == '12' && $max[1] == '01')
+            elseif ($em == $sm+1 || $ey == $sy+1 && $em == 1 && $sm == 12)
             {
                 // we need to add 2 ranges: (min, 31) and (01, max) instead of simply (min, max)
                 // when range crosses 1 month boundary
                 // for example: 2008-12-20..2009-01-10 => 2008-XX-20..2008-XX-31 + 2009-XX-01..2009-XX-10
-                $range[] = array('XXXX-XX-'.$min[2], 'XXXX-XX-31');
-                $range[] = array('XXXX-XX-01', 'XXXX-XX-'.$max[2]);
-                $range[] = array($min[0].'-XX-'.$min[2], $min[0].'-XX-31');
-                $range[] = array($max[0].'-XX-01', $max[0].'-XX-'.$max[2]);
+                $range[] = array("XXXX-XX-$sd", "XXXX-XX-31");
+                $range[] = array("XXXX-XX-01", "XXXX-XX-$ed");
+                $range[] = array("$sy-XX-$sd", "$ey-XX-31");
+                $range[] = array("$sy-XX-01", "$ey-XX-$ed");
             }
             else
             {
-                $range[] = array('XXXX-XX-01', 'XXXX-XX-31');
-                $range[] = array($min[0].'-XX-01', $max[0].'-XX-31');
+                $range[] = array("XXXX-XX-01", "XXXX-XX-31");
+                $range[] = array("$sy-XX-01", "$ey-XX-31");
             }
         }
-        $range[] = array($min[0].'-'.$min[1].'-'.$min[2], $max[0].'-'.$max[1].'-'.$max[2]);
+        $range[] = array("$sy-$sm-$sd", "$ey-$em-$ed");
 
         $this->buildRanges($range);
 
@@ -1672,15 +1671,13 @@ class WikiCalendar extends CalendarArticles
     function buildArticleRange($parent, $min, $max)
     {
         $this->i++;
-        $mintitle = Title::newFromText($parent->getPrefixedText().'/'.$min)->getDBkey();
-        $maxtitle = Title::newFromText($parent->getPrefixedText().'/'.$max)->getDBkey();
-        $l = mb_strlen($mintitle);
         $dbr = wfGetDB(DB_SLAVE);
-        $result = $dbr->select('page', 'page_namespace, page_title', array(
-            'page_namespace' => $parent->getNamespace(),
-            'page_title>='.$dbr->addQuotes($mintitle),
-            'page_title<='.$dbr->addQuotes($maxtitle),
-        ), __METHOD__);
+        $where = array('page_namespace' => $parent->getNamespace());
+        if ($min)
+            $where[] = 'page_title>='.$dbr->addQuotes(Title::newFromText($parent->getPrefixedText().'/'.$min)->getDBkey());
+        if ($max)
+            $where[] = 'page_title<'.$dbr->addQuotes(Title::newFromText($parent->getPrefixedText().'/'.$max)->getDBkey());
+        $result = $dbr->select('page', 'page_namespace, page_title', $where, __METHOD__);
         $titles = array();
         while ($row = $dbr->fetchRow($result))
             if ($row = Title::newFromText($row['page_title'], $row['page_namespace']))
@@ -1710,32 +1707,37 @@ class WikiCalendar extends CalendarArticles
     // this is a general find/replace for the date format
     // users can define whatever format this wish
     // ie: 20090731, 07-01-2009, 07.01.2009, etc
-    function userDateFormat($month, $day, $year) {
+    function userDateFormat($month, $day, $year)
+    {
         global $wgCalendarDateFormat;
 
-        $format = $wgCalendarDateFormat;
-        if($format == '') $format = 'M-D-YYYY'; //default
+        if (empty($wgCalendarDateFormat))
+            $format = 'YYYY-MM-DD';
+        else
+            $format = $wgCalendarDateFormat;
 
         $format = str_ireplace('YYYY',$year,$format);
         $format = str_ireplace('MM', str_pad($month, 2, '0', STR_PAD_LEFT), $format);
         $format = str_ireplace('DD', str_pad($day, 2, '0', STR_PAD_LEFT), $format);
         $format = str_ireplace('D',$day,$format);
 
-        if( stripos($format,'SM') !== false || stripos($format,'LM') !== false ){
+        if (stripos($format,'SM') !== false || stripos($format, 'LM') !== false)
+        {
             $format = str_ireplace('SM', CalendarCommon::translate($month, 'month_short'), $format);
             $format = str_ireplace('LM', CalendarCommon::translate($month, 'month'), $format);
-        }else{
-            $format = str_ireplace('M',$month,$format);
         }
+        else
+            $format = str_ireplace('M',$month,$format);
 
         return $format;
     }
 
-    function buildTagEvents($paramstring){
+    function buildTagEvents($paramstring)
+    {
+        $events = explode("\n", trim($paramstring));
 
-        $events = explode( "\n", trim($paramstring) );
-
-        foreach($events as $event) {
+        foreach ($events as $event)
+        {
             $arr = explode(':', $event);
             $date = array_shift($arr);
             $event = array_shift($arr);
@@ -1745,7 +1747,7 @@ class WikiCalendar extends CalendarArticles
             $arrDate = explode('-',$date);
 
             // we must have a valid date to continue
-            if(count($arrDate) < 3)
+            if (count($arrDate) < 3)
                 break;
 
             $month = $arrDate[0];
@@ -1817,10 +1819,11 @@ class WikiCalendar extends CalendarArticles
 
         $ret = "<tr><td>" . $this->buildConfigLink(true) . "</td><td $styleTitle colspan=2>$title</td><td align=right>$this->tag_views</td></tr>";
 
-        for($m=0;$m <12; $m++){
+        for ($m = 0; $m < 12; $m++)
+        {
             $cal .= "<td style='text-align:center; vertical-align:top;'>" . $this->buildSimpleCalendar($nextMon++, $nextYear, true) . "</td>";
-
-            if($m==3 || $m==7 || $m==11){
+            if ($m == 3 || $m == 7 || $m == 11)
+            {
                 $ret .= "<tr>$cal</tr>";
                 $cal = "";
             }
@@ -1859,7 +1862,8 @@ class WikiCalendar extends CalendarArticles
         $tag_weekForward = "<input class='btn' name='weekForward' type='submit' value='>>'>";
         $tag_todayButton = "<input class='btn' name='today' type='submit' value=\"$btnToday\">";
 
-        if(!$fiveDay){
+        if(!$fiveDay)
+        {
             $sunday = "<td class='calendarHeading'>" . CalendarCommon::translate(1, 'weekday'). "</td>";
             $saturday = "<td class='calendarHeading'>" . CalendarCommon::translate(7, 'weekday'). "</td>";
             $colspan = 4; // adjust for mode buttons

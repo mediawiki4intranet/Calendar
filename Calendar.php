@@ -16,10 +16,10 @@ if (!defined('MEDIAWIKI')) {
     die( 'This file is a MediaWiki extension, it is not a valid entry point' );
 }
 
-$gCalendarVersion = "v3.8.4 (8/18/2009)";
+$wgCalendarVersion = "v3.8.4 (8/18/2009)";
 
 if (!isset($wgCalendarDateFormat))
-    $wgCalendarDateFormat = 'D.M.YYYY';
+    $wgCalendarDateFormat = 'YYYY-MM-DD';
 
 # Credits
 $wgExtensionCredits['parserhook'][] = array(
