@@ -156,7 +156,13 @@ class CalendarArticles
             }
         }
         if ($last)
+        {
+            if (!isset($last['name']))
+                $last['name'] = '';
+            if (!isset($last['anchor']))
+                $last['anchor'] = '';
             $head[] = $last;
+        }
 
         foreach ($head as $ev)
             $this->add($month, $day, $year, trim($ev['name']), $page, $ev['body'], $ev['anchor'], $is_template ? 'template' : 'addevent');
@@ -318,11 +324,9 @@ class CalendarArticles
 
         $argv = array('action' => 'edit');
         // if we're using multi-event mode, then default to section=new
-        if ($this->setting('usesectionevents'))
-        {
-            $sect = true;
+        $sect = $this->setting('usesectionevents');
+        if ($sect)
             $argv['section'] = 'new';
-        }
         $articleName = $this->getNextAvailableArticle($this->calendarPageName, $date);
         $title = Title::newFromText($articleName);
 
@@ -330,6 +334,7 @@ class CalendarArticles
         $tip = CalendarCommon::translate('add_event_tip');
         if ($this->setting('weekofyear'))
             $tip .= " (wk:" . $this->getWeekOfTheYear($month,$day,$year,true) . ")";
+        $mid = false;
         if ($text == "" && ($range = $this->setting('addeventsbyhour')))
         {
             // display separate links for adding event to each hour
@@ -1935,7 +1940,7 @@ class WikiCalendar extends CalendarArticles
     function buildAboutLink()
     {
         $about_translated = CalendarCommon::translate('about');
-        return "<a title='$about_translated' href='http://yourcmc.ru/wiki/Calendar_(MediaWiki)' target='_blank'>about</a>...";
+        return "<a title='$about_translated' href='http://wiki.4intra.net/Calendar_(MediaWiki)' target='_blank'>about</a>...";
     }
 
     //hopefully a catchall of most types of returns values
