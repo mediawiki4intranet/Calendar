@@ -85,7 +85,7 @@ function wfCalendarUnknownAction($action, $article)
         $params = $wgRequest->getValues();
         $t = $article->getTitle();
         $params['path'] = str_replace("\\", "/", dirname(__FILE__));
-        $params['title'] = Title::newFromText($t->prefix($t->getBaseText()));
+        $params['title'] = Title::makeTitleSafe($t->getNamespace(), $t->getBaseText());
         $params['name'] = $t->getSubpageText();
         $calendar->config($params);
         $calendar->renderFeed();
