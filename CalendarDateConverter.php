@@ -18,12 +18,13 @@
 if (!defined('MEDIAWIKI'))
     die(__FILE__." is a MediaWiki extension and cannot be used outside of it");
 
-$wgExtensionFunctions[] = "wfDateConverter";
+$wgHooks['ParserFirstCallInit'][] = "wfRegisterDateConverter";
 $wgAutoloadClasses['CalendarDateConverter'] = dirname(__FILE__).'/CalendarDateConverter.class.php';
 
-function wfDateConverter() {
-    global $wgParser;
-    $wgParser->setHook( "dateconverter", "convertCalendarDates" );
+function wfRegisterDateConverter($parser)
+{
+    $parser->setHook("dateconverter", "convertCalendarDates");
+    return true;
 }
 
 // CalendarEvents:NSC Interface Calendar/Public/1-1-2008 -Event 0
