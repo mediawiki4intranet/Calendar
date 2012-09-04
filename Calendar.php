@@ -60,7 +60,7 @@ function wfCalendarLoadDay($title, $date, $parstr)
     else
         $params = array();
     $params['path'] = str_replace("\\", "/", dirname(__FILE__));
-    $params['title'] = Title::newFromText($t->prefix($t->getBaseText()));
+    $params['title'] = Title::makeTitleSafe($t->getNamespace(), $t->getBaseText());
     $params['name'] = $t->getSubpageText();
     $calendar->config($params);
     $date = explode('-', $date);
@@ -120,8 +120,8 @@ function wfCalendarRefresh()
 
         // the yearSelect and monthSelect must be on top... the onChange triggers
         // whenever the other buttons are clicked
-        if ($v["yearSelect"]) $year = $v["yearSelect"];
-        if ($v["monthSelect"]) $month = $v["monthSelect"];
+        if (isset($v["yearSelect"])) $year = $v["yearSelect"];
+        if (isset($v["monthSelect"])) $month = $v["monthSelect"];
 
         if (isset($v["yearBack"])) --$year;
         if (isset($v["yearForward"])) ++$year;
