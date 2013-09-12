@@ -50,7 +50,6 @@ function wfRegisterCalendar($parser)
 function wfCalendarLoadDay($title, $date, $parstr)
 {
     global $wgRequest;
-    wfLoadExtensionMessages('wfCalendarExtension');
     CalendarCommon::parse('');
     $calendar = new WikiCalendar();
     $t = Title::newFromText($title);
@@ -79,7 +78,6 @@ function wfCalendarUnknownAction($action, $article)
     if ($action == 'rss-calendar')
     {
         global $wgRequest;
-        wfLoadExtensionMessages('wfCalendarExtension');
         CalendarCommon::parse('');
         $calendar = new WikiCalendar();
         $params = $wgRequest->getValues();
@@ -182,8 +180,6 @@ function wfCalendarDisplay($paramstring, $params = array(), $parser)
     global $wgTitle, $wgUser;
     global $wgRestrictCalendarTo, $wgCalendarDisableRedirects;
     global $wgCalendarForceNamespace, $wgCalendarDateFormat;
-
-    wfLoadExtensionMessages( 'wfCalendarExtension' );
 
     wfCalendarRefresh();
 
