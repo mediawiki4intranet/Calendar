@@ -673,6 +673,7 @@ class WikiCalendar extends CalendarArticles
 
     // [begin] set calendar parameter defaults
     var $calendarMode = "normal";
+    var $mode = 'week';
     var $title = "";
     var $index = array();
 
@@ -839,16 +840,16 @@ class WikiCalendar extends CalendarArticles
 
         // need to change the running calendar date
         // or the other functions wont set correctly
-        if($userMode == 'day')
+        if ($userMode == 'day')
             $this->updateDate();
 
         $this->initalizeHTML();
         $this->readStylepage();
 
-        if(!$this->setting('disablerecurrences'))
+        if (!$this->setting('disablerecurrences'))
             $this->buildVCalEvents();
 
-        if($this->paramstring != '')
+        if ($this->paramstring != '')
             $this->buildTagEvents($this->paramstring);
 
         // mode we going into
@@ -896,12 +897,15 @@ class WikiCalendar extends CalendarArticles
         $css_data = file_get_contents($extensionPath . "/templates/$css");    //ugly method
         $this->html_template = file_get_contents($extensionPath . "/templates/calendar_template.html");
 
-        //add css; this is set as 'default.css' or an override
-        if($wgVersion >= '1.14'){
-            $wgOut->addStyle($cssURL . $css); //clean method
+        // add css; this is set as 'default.css' or an override
+        // FIXME use ResourceLoader
+        if ($wgVersion >= '1.14')
+        {
+            $wgOut->addStyle($cssURL . $css); // clean method
         }
-        else{
-            $wgOut->addHTML($css_data); //ugly method
+        else
+        {
+            $wgOut->addHTML($css_data); // ugly method
         }
 
         $this->templateHTML['normal'] = $this->searchHTML($this->html_template,"<!-- Day Start -->", "<!-- Day End -->");
@@ -911,7 +915,8 @@ class WikiCalendar extends CalendarArticles
         $month = CalendarCommon::translate('month');
         $week = CalendarCommon::translate('week');
 
-        if(!$this->setting('disablemodes')){
+        if (!$this->setting('disablemodes'))
+        {
             $selected = "selected='true'";
             $this->tag_views = "<select name='viewSelect' method='post' onChange='javascript:this.form.submit()'>";
 
@@ -922,6 +927,7 @@ class WikiCalendar extends CalendarArticles
             ($this->mode == 'month') ?
                 $this->tag_views .= "<option class='lst' value='month' $selected>$month</option>" :
                 $this->tag_views .= "<option class='lst' value='month'>$month</option>";
+
             ($this->mode == 'week') ?
                 $this->tag_views .= "<option class='lst' value='week' $selected>$week</option>" :
                 $this->tag_views .= "<option class='lst' value='week'>$week</option>";
@@ -1675,7 +1681,6 @@ class WikiCalendar extends CalendarArticles
     // builds articles for given range
     function buildArticleRange($parent, $min, $max)
     {
-        $this->i++;
         $dbr = wfGetDB(DB_SLAVE);
         $where = array('page_namespace' => $parent->getNamespace());
         if ($min)
@@ -1943,22 +1948,27 @@ class WikiCalendar extends CalendarArticles
         return "<a title='$about_translated' href='http://wiki.4intra.net/Calendar_(MediaWiki)' target='_blank'>about</a>...";
     }
 
-    //hopefully a catchall of most types of returns values
-    function setting($param, $retBool=true){
+    // Hopefully a catchall of most types of returns values
+    function setting($param, $retBool = true)
+    {
+        // not set; return bool false
+        if (!isset($this->arrSettings[$param]) && $retBool)
+            return false;
+        if (!isset($this->arrSettings[$param]) && !$retBool)
+            return "";
 
-        //not set; return bool false
-        if(!isset($this->arrSettings[$param]) && $retBool) return false;
-        if(!isset($this->arrSettings[$param]) && !$retBool) return "";
-
-        //set, but no value; return bool true
-        if($param == $this->arrSettings[$param] && $retBool) return true;
-        if($param == $this->arrSettings[$param] && !$retBool) return "";
+        // set, but no value; return bool true
+        if ($param == $this->arrSettings[$param] && $retBool)
+            return true;
+        if ($param == $this->arrSettings[$param] && !$retBool)
+            return "";
 
         // contains data; so lets return it
         return $this->arrSettings[$param];
     }
 
-    function updateSetting($params, $value = null){
+    function updateSetting($params, $value = null)
+    {
         $this->arrSettings[$params] = $value;
     }
 
