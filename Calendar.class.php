@@ -149,6 +149,7 @@ class CalendarArticles
             $last = array();
             $cur_m = $month;
             $cur_d = $day;
+            $seen_anchor = array();
             foreach ($lines as $i => $line)
             {
                 $line = trim($line);
@@ -169,11 +170,21 @@ class CalendarArticles
                     {
                         $head[] = $last;
                     }
+                    $m[2] = trim($m[2]);
+                    if (isset($seen_anchor[$m[2]]))
+                    {
+                        $anchor = $m[2].' '.($seen_anchor[$m[2]]++);
+                    }
+                    else
+                    {
+                        $anchor = $m[2];
+                        $seen_anchor[$m[2]] = 2;
+                    }
                     $last = array(
                         'month' => $cur_m,
                         'day' => $cur_d,
-                        'anchor' => trim($m[2]),
-                        'name' => trim($m[2]),
+                        'anchor' => $anchor,
+                        'name' => $m[2],
                         'body' => '',
                     );
                 }
