@@ -13,7 +13,8 @@ class CalendarCommon
 
         $string = $wgParser->getVariableValue($string);
 
-        if(isset($string)) $ret = $string;
+        if (isset($string))
+            $ret = $string;
 
         return $ret;
     }
@@ -22,7 +23,8 @@ class CalendarCommon
     {
         $seconds = $dayOffset * 86400;
         $arr = getdate(mktime(12, 0, 0, $month, $day, $year) + $seconds);
-        return array( $arr['mon'], $arr['mday'], $arr['year'] );
+        // TODO Fix idiotic american m/d/y order and replace it by normal DB order: y-m-d
+        return array($arr['mon'], $arr['mday'], $arr['year']);
     }
 
     static function cleanWiki($text)
@@ -42,8 +44,10 @@ class CalendarCommon
 
         $lenWiki = strlen($tagWiki);
         $pos = strpos($text, $tagWiki);
-        if($pos !== false){
-            if($tagHTML != ""){
+        if ($pos !== false)
+        {
+            if ($tagHTML != "")
+            {
                 $ret = substr_replace($text, "<$tagHTML>", $pos, $lenWiki);
                 $ret = str_replace($tagWiki, "</$tagHTML>", $ret);
             }
@@ -81,7 +85,7 @@ class CalendarCommon
 
     static function day_diff($date1, $date2)
     {
-        if(!isset($date2))
+        if (!isset($date2))
             return 0;
 
         $start = mktime($date1['hours'], $date1['minutes'], $date1['seconds'], $date1['mon'], $date1['mday'], $date1['year']);
@@ -138,20 +142,24 @@ class CalendarCommon
         return "";
     }
 
-    static function isWeekend($month, $day, $year){
+    static function isWeekend($month, $day, $year)
+    {
         $dayOfWeek = date('N', mktime(12, 0, 0, $month, $day, $year));
 
-        if($dayOfWeek > 5) return true;
+        if ($dayOfWeek > 5)
+            return true;
 
         return false;
     }
 
-    function right($value, $count){
+    function right($value, $count)
+    {
         $value = substr($value, (strlen($value) - $count), strlen($value));
         return $value;
     }
 
-    function left($string, $count){
+    function left($string, $count)
+    {
         return substr($string, 0, $count);
     }
 
