@@ -169,12 +169,6 @@ Please use quotes for any parameter that may contain a space
 |default.css
 |3.5
 |-
-|'''disabletimetrack'''
-|Time tracking is enabled by default and looks for double colons (::vacation-8) or (::vacation:8). This will create a dynamic listing of trackable events below the calendar.
-|disabletimetrack
-|enabled
-|3.5
-|-
 |'''enablerepeatevents=<value>'''
 |Repeating events are created using using (5# Vacation) within normal events. The code looks up the previous months and applies carry-over events to the current month. It may increase the calendar load time as it looks back 15 days (default) into the previous month for carry over repeating events.
 |enablerepeatevents=45
@@ -331,14 +325,6 @@ I'm not sure how far and how many variation of the css and/or Wiki formatting wi
 
 
 * you can default all events to your style preference by using the '''style="..."''' preference. However, individual keyword event styles override the global default.
-
-=== Time Tracker ===
-You can keep simple time tracking of events by formatting the event as below. This will track any dynamically created event in a simple table below the calendar in full mode only. The event is triggered by prefixing (2) colons followed by the event then (1) colon or (1) dash followed by a numeric value to add. 
- ::Vacation: 8 or ::Vacation -8
- ::Team Project 1 - 3
- ::Sick : 4
-
-Note that events created using the 'add event' link only track time for that month. If you want to track a years total, you need to enable and use month templates ('''usetemplates''')
 
 == vCalendar (iCal) Support ==
 The calendar supports the basic importing of vCalendar formatted files. The import utility is enabled by adding '''ical''' or '''ical=overwrite''' to your parameter string or ''config'' file settings.<br>

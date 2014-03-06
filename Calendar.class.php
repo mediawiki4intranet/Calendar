@@ -25,18 +25,31 @@ class CalendarArticle
     }
 }
 
-/**
- * Class:   CalendarArticles
- * Purpose: Contains most of the functions to retrieve article
- *          information. It also is the primary container for
- *          the main array of class::CalendarArticle articles
- */
-
-class CalendarArticles
+class WikiCalendar
 {
+    // event data
     var $arrEvents = array();
-    var $arrTimeTrack = array();
+    var $index = array();
+
+    // calendar settings
+    var $year, $month, $day;
+    var $arrSettings = array();
     var $arrStyle = array();
+    var $calendarMode = "normal";
+    var $calendarPageName;
+    var $mode = 'week';
+    var $title = "";
+
+    var $disableConfigLink = true;
+
+    var $arrAlerts = array();
+    var $subscribedPages = array();
+
+    var $tag_views = "";
+    var $prepend_html = '';
+
+    var $invalidateCache = false;
+    var $isFullSubscribe = false;
 
     static function eventtime_sort($a, $b)
     {
@@ -214,6 +227,8 @@ class CalendarArticles
             $this->add($ev['month'], $ev['day'], $year, trim($ev['name']), $page,
                 $ev['body'], $ev['anchor'], $is_template ? 'template' : 'addevent');
         }
+
+        return;
     }
 
     public function buildEvent($month, $day, $year, $event, $page, $body, $eventType = 'addevent', $bRepeats = false, $anchor = '')
@@ -241,16 +256,12 @@ class CalendarArticles
 
     // this is the FINAL stop; the events are stored here then pulled out
     // and displayed later via "getArticleLinks()"...
-    private function add($month, $day, $year, $eventname, $page, $body, $anchor = '', $eventType = 'addevent', $bRepeats = false)
+    function add($month, $day, $year, $eventname, $page, $body, $anchor = '', $eventType = 'addevent', $bRepeats = false)
     {
         // $eventType='default' -- addevent
         // $eventType='recurrence'
         // $eventType='template'
-        global $wgParser;
-
         $cArticle = new CalendarArticle($month, $day, $year);
-        $temp = $this->checkTimeTrack($month, $day, $year, $eventname, $eventType);
-        $temp = trim($temp);
 
         // lets get the body char limit
         $summaryLength = $this->setting('enablesummary', false);
@@ -267,15 +278,11 @@ class CalendarArticles
         $cArticle->day = $day;
         $cArticle->year = $year;
         $cArticle->page = $page;
-        $cArticle->eventname = $temp;
+        $cArticle->eventname = $eventname;
         $cArticle->body = $body;
         $cArticle->anchor = $anchor;
         if ($eventType == 'template')
             $cArticle->is_template = true;
-
-        // wik-a-fi the $body; however, cut off text could cause html issues... so try to
-        // keep all required body wiki/html to the top
-        $parsedBody = $wgParser->recursiveTagParse(CalendarCommon::limitText($cArticle->body, $summaryLength));
 
         $this->arrEvents[] = $cArticle;
         $this->addToIndex($cArticle);
@@ -301,65 +308,6 @@ class CalendarArticles
             $this->index[$date][] = array($min, $max, $cArticle);
         }
         $this->index['articles'][$date][] = $cArticle;
-    }
-
-    // this function checks a template event for a time trackable value
-    private function checkTimeTrack($month, $day, $year, $event, $eventType)
-    {
-        if ((stripos($event, "::") === false) || $this->setting('disabletimetrack'))
-            return $event;
-
-        $arrEvent = explode("::", $event);
-
-        $arrType = explode(":", $arrEvent[1]);
-        if (count($arrType) == 1)
-            $arrType = explode("-", $arrEvent[1]);
-
-        if (count($arrType) != 2)
-            return $event;
-
-        $type = trim(strtolower($arrType[0]));
-
-        // we only want the displayed calendar year totals
-        if ($this->year == $year)
-        {
-            if ($eventType == 'templates')
-                $this->arrTimeTrack[$type.' (y)'][] = $arrType[1];
-            else
-                $this->arrTimeTrack[$type.' (m)'][] = $arrType[1];
-        }
-
-        // piece together any prefixes that the code may have added - like (r) for repeat events
-        $ret = $arrType[0] . " <i>-(track)</i>";
-
-        return $ret;
-    }
-
-    public function buildTrackTimeSummary()
-    {
-        if ($this->setting('disabletimetrack'))
-            return "";
-
-        $ret = "";
-        $cntValue = count($this->arrTimeTrack);
-
-        if ($cntValue == 0)
-            return "";
-
-        $cntHead = explode(",", $this->setting('timetrackhead', false));
-        $linktitle = "Time summaries of time specific enties. Prefix events with :: to track time values.";
-
-        $html_head = "<hr><table title='$linktitle' width=15% border=1 cellpadding=0 cellspacing=0><th>$cntHead[0]</th><th>$cntHead[1]</th>";
-        $html_foot = "</table><small>"
-            . "(m) - total month only; doesn't add to year total <br/>"
-            . "(y) - total year; must use monthly templates<br/></small><br>";
-
-        while (list($key, $val) = each($this->arrTimeTrack))
-        {
-            $ret .= "<tr><td align='center'>$key</td><td align='center'>" . array_sum($this->arrTimeTrack[$key]) . "</td></tr>";
-        }
-
-        return $html_head . $ret . $html_foot;
     }
 
     // find the number of current events and "build" the <add event> link
@@ -756,33 +704,6 @@ class CalendarArticles
 
         return $events;
     }
-}
-
-/**
- * Class:   Calendar
- * Purpose: Main class
- */
-
-class WikiCalendar extends CalendarArticles
-{
-    var $arrSettings = array();
-
-    // [begin] set calendar parameter defaults
-    var $calendarMode = "normal";
-    var $mode = 'week';
-    var $title = "";
-    var $index = array();
-
-    var $disableConfigLink = true;
-
-    var $arrAlerts = array();
-    var $subscribedPages = array();
-
-    var $tag_views = "";
-    var $prepend_html = '';
-
-    var $invalidateCache = false;
-    var $isFullSubscribe = false;
 
     function WikiCalendar()
     {
@@ -829,7 +750,6 @@ class WikiCalendar extends CalendarArticles
 
         // set defaults that are required later in the code...
         $params += array(
-            'timetrackhead' => 'Event, Value',
             'maxdailyevents' => 5,
             'yearoffset' => 2,
             'charlimit' => 25,
@@ -964,9 +884,6 @@ class WikiCalendar extends CalendarArticles
             $ret = $this->renderDate();
         elseif ($userMode == 'events')
             $ret = $this->renderEventList();
-
-        // tag on extra info at the end of whatever is displayed
-        $ret .= $this->buildTrackTimeSummary();
 
         if ($this->prepend_html !== '')
             $ret = $this->prepend_html . $ret;
@@ -1440,10 +1357,9 @@ class WikiCalendar extends CalendarArticles
         $tag_addEvent = "";                // the add event link [[AddEvent]]
         $tag_eventList = "";               // the event list [[EventList]]
         $tag_eventStyleButton = "";        // event style buttonn [[EventStyleBtn]]
-        $tag_templateButton = "";        // template button for multiple events [[TemplateButton]]
-        $tag_todayButton = "";            // today button [[TodayButton]]
-        $tag_configButton = "";         // config page button
-        $tag_timeTrackValues = "";         // summary of time tracked events
+        $tag_templateButton = "";          // template button for multiple events [[TemplateButton]]
+        $tag_todayButton = "";             // today button [[TodayButton]]
+        $tag_configButton = "";            // config page button
         $tag_loadiCalButton = "";
         $tag_about = "";
 
@@ -1576,7 +1492,6 @@ class WikiCalendar extends CalendarArticles
         $tempString = str_replace("[[EventStyleBtn]]", $tag_eventStyleButton, $tempString);
         $tempString = str_replace("[[Version]]", $wgCalendarVersion, $tempString);
         $tempString = str_replace("[[ConfigurationButton]]", $tag_configButton, $tempString);
-        $tempString = str_replace("[[TimeTrackValues]]", $tag_timeTrackValues, $tempString);
         $tempString = str_replace("[[Load_iCal]]", $tag_loadiCalButton, $tempString);
         $tempString = str_replace("[[About]]", $tag_about, $tempString);
 
