@@ -95,7 +95,10 @@ class CalendarArticles
         return $ret;
     }
 
-    // build an event based on the 1st line or ==event== type
+    /**
+     * Extract event information from article text
+     * [based on the 1st line or =DAY= ... ==TIME event== ... sections]
+     */
     public function addArticle($month, $day, $year, $page, $is_template = false)
     {
         $lines = array();
@@ -110,7 +113,7 @@ class CalendarArticles
         $redirectCount = 0;
 
         if ($article->isRedirect() && $this->setting('disableredirects'))
-            return '';
+            return;
 
         while ($article->isRedirect() && $redirectCount < 10) // FIXME remove hardcode (10)
         {
@@ -120,8 +123,8 @@ class CalendarArticles
         }
 
         $body = trim($article->fetchContent(0, false, false));
-        if ($body == "")
-            return "";
+        if (!$body)
+            return;
 
         $lines = explode("\n", $body);
 
@@ -129,44 +132,77 @@ class CalendarArticles
         $head = array();
         if ($this->setting('disablesectionevents'))
         {
+            if (!$month || !$day)
+            {
+                return;
+            }
             $key = array_shift($lines);
-            $head[] = array('name' => $key, 'body' => implode("\n", $lines));
+            $head[] = array(
+                'month' => $month,
+                'day' => $day,
+                'name' => $key,
+                'body' => implode("\n", $lines),
+            );
         }
         else
         {
             $last = array();
+            $cur_m = $month;
+            $cur_d = $day;
             foreach ($lines as $i => $line)
             {
                 $line = trim($line);
-                if (preg_match('/^(=+)(.*)\1/s', $line, $m))
+                if (preg_match('/^(=+)\s*(\d+)-(\d+)-(\d+)\s*\1/s', $line, $m))
+                {
+                    if ($m[2] != $year ||
+                        $month && $m[3] != $month ||
+                        $day && $m[4] != $day)
+                        continue;
+                    if (!$month)
+                        $cur_m = intval($m[3]);
+                    if (!$day)
+                        $cur_d = intval($m[4]);
+                }
+                elseif (preg_match('/^(=+)(.*)\1/s', $line, $m))
                 {
                     if ($last)
+                    {
                         $head[] = $last;
-                    $last['anchor'] = $last['name'] = trim($m[2]);
-                    $last['body'] = '';
+                    }
+                    $last = array(
+                        'month' => $cur_m,
+                        'day' => $cur_d,
+                        'anchor' => trim($m[2]),
+                        'name' => trim($m[2]),
+                        'body' => '',
+                    );
                 }
-                elseif (!$last)
+                elseif ($line)
                 {
-                    if ($last)
-                        $head[] = $last;
-                    $last['name'] = $line;
-                    $last['body'] = '';
-                }
-                else
+                    if (!$last)
+                    {
+                        $last = array(
+                            'month' => $month,
+                            'day' => $day,
+                            'name' => $line,
+                            'anchor' => '',
+                            'body' => '',
+                        );
+                    }
                     $last['body'] .= "$line\n";
+                }
             }
         }
         if ($last)
         {
-            if (!isset($last['name']))
-                $last['name'] = '';
-            if (!isset($last['anchor']))
-                $last['anchor'] = '';
             $head[] = $last;
         }
 
         foreach ($head as $ev)
-            $this->add($month, $day, $year, trim($ev['name']), $page, $ev['body'], $ev['anchor'], $is_template ? 'template' : 'addevent');
+        {
+            $this->add($ev['month'], $ev['day'], $year, trim($ev['name']), $page,
+                $ev['body'], $ev['anchor'], $is_template ? 'template' : 'addevent');
+        }
     }
 
     public function buildEvent($month, $day, $year, $event, $page, $body, $eventType = 'addevent', $bRepeats = false, $anchor = '')
@@ -230,11 +266,11 @@ class CalendarArticles
         // keep all required body wiki/html to the top
         $parsedBody = $wgParser->recursiveTagParse(CalendarCommon::limitText($cArticle->body, $summaryLength));
 
-        $this->arrEvents[] = &$cArticle;
+        $this->arrEvents[] = $cArticle;
         $this->addToIndex($cArticle);
     }
 
-    private function addToIndex(&$cArticle)
+    private function addToIndex($cArticle)
     {
         $date = sprintf("%04d-%02d-%02d", $cArticle->year, $cArticle->month, $cArticle->day);
         if (preg_match('/(\d\d:\d\d(:\d\d)?)[^\w:]*(\d\d:\d\d(:\d\d)?)/s', $cArticle->eventname, $m))
@@ -251,9 +287,9 @@ class CalendarArticles
                 $min = $max;
                 $max = $t;
             }
-            $this->index[$date][] = array($min, $max, &$cArticle);
+            $this->index[$date][] = array($min, $max, $cArticle);
         }
-        $this->index['articles'][$date][] = &$cArticle;
+        $this->index['articles'][$date][] = $cArticle;
     }
 
     // this function checks a template event for a time trackable value
@@ -1078,7 +1114,7 @@ class WikiCalendar extends CalendarArticles
         $tag_addEvent = $this->buildAddEventLink($month, $day, $year);
 
         // no events, then return nothing!
-        if ((strlen($tag_eventList) == 0) && ($mode == 'events'))
+        if (strlen($tag_eventList) == 0 && $mode == 'events')
             return "";
 
         $tag_alerts = $this->buildAlertLink($day, $month);
@@ -1318,6 +1354,7 @@ class WikiCalendar extends CalendarArticles
 
     function renderSimpleMonth()
     {
+        $this->initalizeMonth($month, $year);
         $ret = $this->buildSimpleCalendar($this->month, $this->year);
         return $ret;
     }
@@ -1727,11 +1764,40 @@ class WikiCalendar extends CalendarArticles
     {
         wfProfileIn(__METHOD__);
 
+        // Add archive ranges
+        foreach ($ranges as $r)
+        {
+            $min = $r[0] ? explode('-', $r[0]) : array();
+            $max = $r[1] ? explode('-', $r[1]) : array();
+            for ($i = 0; $i < 2; $i++)
+            {
+                array_pop($min);
+                $l2 = array_pop($max);
+                if ($min || $max)
+                {
+                    if ($l2 > 1 || $min && $max && $min[count($min)-1] == $max[count($max)-1])
+                    {
+                        $max[count($max)-1] = sprintf("%02d", 1+$max[count($max)-1]);
+                        if (count($max) == 2 && $max[1] > 12)
+                        {
+                            $max[0]++;
+                            $max[1] = '01';
+                        }
+                    }
+                    $ranges[] = array(implode('-', $min), implode('-', $max));
+                }
+            }
+        }
+
         $pages = $this->subscribedPages;
         $pages[] = $this->calendarPageName;
         foreach ($ranges as $r)
+        {
             foreach ($pages as $page)
+            {
                 $this->buildArticleRange(Title::newFromText($page), $r[0], $r[1]);
+            }
+        }
 
         wfProfileOut(__METHOD__);
     }
@@ -1762,16 +1828,28 @@ class WikiCalendar extends CalendarArticles
     {
         $dbr = wfGetDB(DB_SLAVE);
         $where = array('page_namespace' => $parent->getNamespace());
+        $like = NULL;
+        $p = $parent->getDBkey();
         if ($min)
-            $where[] = 'page_title>='.$dbr->addQuotes(Title::newFromText($parent->getPrefixedText().'/'.$min)->getDBkey());
+        {
+            $where[] = 'page_title >= '.$dbr->addQuotes("$p/$min");
+            $like = preg_replace('/[^\-]/', '_', $min);
+        }
         if ($max)
-            $where[] = 'page_title<'.$dbr->addQuotes(Title::newFromText($parent->getPrefixedText().'/'.$max)->getDBkey());
-        $result = $dbr->select('page', 'page_namespace, page_title', $where, __METHOD__);
+        {
+            $where[] = 'page_title < '.$dbr->addQuotes("$p/$max");
+            $like = preg_replace('/[^\-]/', '_', $max);
+        }
+        if ($like !== NULL)
+        {
+            $where[] = 'page_title like '.$dbr->addQuotes(str_replace(array('_', '%'), array("\\_", "\\%"), $p).'/'.$like);
+        }
+        $result = $dbr->select('page', '*', $where, __METHOD__);
         $titles = array();
-        while ($row = $dbr->fetchRow($result))
-            if ($row = Title::newFromText($row['page_title'], $row['page_namespace']))
-                $titles[] = $row;
-        $dbr->freeResult($result);
+        foreach ($result as $row)
+        {
+            $titles[] = Title::newFromRow($row);
+        }
         $this->buildArticles($parent, $titles);
     }
 
@@ -1782,8 +1860,12 @@ class WikiCalendar extends CalendarArticles
         foreach ($titles as $page)
         {
             $t = substr($page->getText(), $l);
-            if (preg_match('/^(\d{4}|XXXX)-(\d{2}|XX)-(\d{2})/s', $t, $m))
+            if (preg_match('/^(\d{4}|XXXX)(?:-(\d{2}|XX)(?:-(\d{2}))?)?/s', $t, $m))
             {
+                while (count($m) < 4)
+                {
+                    $m[] = '';
+                }
                 $is_template = $m[1] == 'XXXX' || $m[2] == 'XX';
                 $year = $m[1] == 'XXXX' ? $this->year : intval($m[1]);
                 $month = $m[2] == 'XX' ? $this->month : intval($m[2]);
@@ -1847,10 +1929,8 @@ class WikiCalendar extends CalendarArticles
         }
     }
 
-    function buildSimpleCalendar($month, $year, $disableNavButtons=false)
+    function buildSimpleCalendar($month, $year, $disableNavButtons = false)
     {
-        $this->initalizeMonth($month, $year);
-
         $prev = $next = "";
 
         $monthname = CalendarCommon::translate($month, 'month_short');
@@ -1887,6 +1967,8 @@ class WikiCalendar extends CalendarArticles
 
     function renderYear()
     {
+        $this->buildRanges(array(array($this->year, $this->year+1), array('XXXX', '')));
+
         $tag_mini_cal_year = "";
 
         $tag_previousYearButton = "<input class='btn' name='yearBack' type='submit' value='<<'>";
