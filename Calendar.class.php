@@ -373,20 +373,9 @@ class WikiCalendar
             if ($h == $mid)
                 $html .= '<br />';
         }
-        $this->addCalendarJS();
-        return $html;
-    }
-
-    function addCalendarJS()
-    {
         global $wgOut;
-        // Add JS source if it is not present already
-        if (strpos($wgOut->mScripts, 'Calendar.addevent.js') === false)
-        {
-            global $wgScriptPath;
-            $wgOut->addScriptFile($wgScriptPath.'/extensions/Calendar/Calendar.addevent.js');
-            $wgOut->addScript('<script language="JavaScript">var msg_calendar_event_created = "'.addslashes(wfMsg('calendar-event-created')).'";</script>');
-        }
+        $wgOut->addModules('ext.Calendar');
+        return $html;
     }
 
     function indexHourUsed($date, $h)
@@ -1519,7 +1508,9 @@ class WikiCalendar
         $bfiveDayWeek = $this->setting("5dayweek");
 
         $p = addslashes($this->calendarPageName);
-        $this->addCalendarJS();
+
+        global $wgOut;
+        $wgOut->addModules('ext.Calendar');
 
         for ($week = 0; $week < $weeksInMonth; $week++)
         {

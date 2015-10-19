@@ -34,7 +34,7 @@ if (!defined('MEDIAWIKI'))
     die('This file is a MediaWiki extension, it is not a valid entry point');
 }
 
-$wgCalendarVersion = "v3.9-4intranet (2014-03-06)";
+$wgCalendarVersion = "v3.9.1-4intranet (2015-10-19)";
 
 if (!isset($wgCalendarDateFormat))
     $wgCalendarDateFormat = 'YYYY-MM-DD';
@@ -58,6 +58,17 @@ $wgAutoloadClasses['CalendarArticles'] = "$path/Calendar.class.php";
 $wgHooks['ParserFirstCallInit'][] = 'wfRegisterCalendar';
 $wgHooks['UnknownAction'][] = 'wfCalendarUnknownAction';
 $wgAjaxExportList[] = 'wfCalendarLoadDay';
+
+$wgResourceModules['ext.Calendar'] = array(
+    'localBasePath' => __DIR__,
+    'remoteExtPath' => 'Calendar',
+    'scripts' => [
+        'Calendar.addevent.js',
+    ],
+    'messages' => [
+        'calendar-event-created',
+    ],
+);
 
 function wfRegisterCalendar($parser)
 {

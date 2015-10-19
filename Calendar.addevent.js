@@ -14,7 +14,7 @@ function wikiaddevent(t,m,s)
     var i = document.createElement('input');
     i.type = 'hidden';
     i.name = 'wpTextbox1';
-    i.value = 'ぺ '+msg_calendar_event_created+' '+wgUserName;
+    i.value = 'ぺ '+mw.msg('calendar-event-created')+' '+wgUserName;
     f.appendChild(i);
   }
   document.body.appendChild(f);
