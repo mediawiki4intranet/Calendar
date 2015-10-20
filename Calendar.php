@@ -99,7 +99,8 @@ function wfCalendarLoadDay($title, $date, $parstr)
     $response = $calendar->renderDate();
     $response .= ob_get_contents();
     ob_end_flush();
-    return $response;
+    print $response;
+    exit;
 }
 
 function wfCalendarUnknownAction($action, $article)
